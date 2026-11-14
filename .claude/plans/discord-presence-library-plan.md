@@ -26,8 +26,8 @@ Status: ⬜ todo · 🟨 in progress · ✅ done
 | 1 | Repo and extraction | Headstone's client as a library with no engine dependency, building on Windows and Linux | 0.5 d | — | ✅ |
 | 2 | 200 OK's features and tests | Buttons, images, dry run, frame log, write timeout, field limits. Unit tests and a fake-Discord test on both platforms | 0.75 d | 1 | ✅ |
 | 3 | CI and release v0.1.0 | Six zips on a GitHub release (3 configs × 2 platforms) | 0.25 d | 2 | ✅ |
-| 4 | 200 OK uses it | Replaces phase 1 of 200 OK's plan (0.75 d becomes 0.25 d). Linux no longer deferred there | 0.25 d | 3 | ⬜ |
-| 5 | Headstone uses it | `DiscordPresence.cpp` shrinks to a ~60-line adapter. Same behaviour on your profile | 0.25 d + your live test | 4 | ⬜ |
+| 4 | 200 OK uses it | Replaces phase 1 of 200 OK's plan (0.75 d becomes 0.25 d). Linux no longer deferred there | 0.25 d | 3 | ✅ |
+| 5 | Headstone uses it | `DiscordPresence.cpp` shrinks to a ~60-line adapter. Same behaviour on your profile | 0.25 d + your live test | 4 | ✅ |
 
 All together: about **2 days**. 200 OK saves 0.5 d of it back.
 
@@ -240,23 +240,42 @@ is phase 4 and 5's live test.
 - `v0.1.0` is published (build 4, commit `9d59f80`). `release.yml` attached the six zips,
   `DingoDiscordPresence-0.1.0.4-<Config>-<windows|linux>-x86_64.zip`. The games fetch version `0.1.0`, build `4`.
 
-### Phase 4 — 200 OK uses it (~0.25 d) ⬜
-- [ ] `scripts/fetch-dingodiscordpresence.{ps1,sh}`, premake `includedirs`/`libdirs`/`links` for both systems.
-- [ ] Edit 200 OK's plan: phase 1 becomes "vendor DingoDiscordPresence and wire `GameLayer`". Drop `src/Discord/`,
+### Phase 4 — 200 OK uses it (~0.25 d) ✅
+- [x] `scripts/fetch-dingodiscordpresence.{ps1,sh}`, premake `includedirs`/`libdirs`/`links` for both systems.
+- [x] Edit 200 OK's plan: phase 1 becomes "vendor DingoDiscordPresence and wire `GameLayer`". Drop `src/Discord/`,
   `Json.h`, `SendGate.h`, `fake-discord.ps1`, `test/DiscordTests.cpp` and the non-Windows stub. Take Linux out of
   Deferred. Phases 2 and 3 stay as written.
 - Verify: 200 OK's phase 1 capture against the fake pipe on index 9.
 
-### Phase 5 — Headstone uses it (~0.25 d + your live test) ⬜
-- [ ] Fetch scripts and premake, as phase 4. On Linux, put the link before `pthread` like DingoNet
+**As built (14 Nov 2026), in `KingoBoiii/ok200`:**
+- Merged to `main`: `fb11965` (vendor and wire), `5d14c2f` (the live lines), `4023778` (plan done). All three
+  phases of 200 OK's own plan are ✅, its live test included.
+- The fetch scripts are named `scripts/fetch-discord-presence.{ps1,sh}`. The Linux package unpacks under
+  `vendor/DingoDiscordPresence/linux/`.
+- The adapter is `src/Discord/Discord.{h,cpp}`, the only code that includes the library header.
+- No library bug or gap was reported.
+
+### Phase 5 — Headstone uses it (~0.25 d + your live test) ✅
+- [x] Fetch scripts and premake, as phase 4. On Linux, put the link before `pthread` like DingoNet
   (`premake5.lua:228`).
-- [ ] `DiscordPresence.cpp` becomes an adapter: same static API, one `Client` inside, `PresenceInfo` mapped to
+- [x] `DiscordPresence.cpp` becomes an adapter: same static API, one `Client` inside, `PresenceInfo` mapped to
   `Activity` with `LargeImage = "headstone"`. No caller changes (`HeadstoneLayer.cpp:452`, `:1752`, `:2223`,
   `SettingsScreen.cpp:253`).
-- [ ] `docs/build.md:84-111`: point to the library.
+- [x] `docs/build.md:84-111`: point to the library.
 - Verify: the fake-pipe capture, then your profile with real Discord on Windows and Linux. Toggle the setting off
   and on.
 - Commit: `refactor(discord): use DingoDiscordPresence for the pipe client`
+
+**As built (14 Nov 2026), in `KingoBoiii/Headstone`:**
+- PR #204, merged: `62f01ea`. `DiscordPresence.cpp` went from 523 lines to about 90. API and callers unchanged.
+- Wire: the same run on the old client and on the library gives identical frames (same order, same JSON apart
+  from `pid` and `timestamps.start`), and the same `discord:` log lines.
+- Live test on real Discord, Windows: passed (card in every state, quit, late Discord, Discord restart, the
+  setting off and on).
+- **Not tested:** real Discord on Linux, in either game. It rests on the WSL builds and the library's own tests.
+- One difference, which Headstone cannot hit: with an empty app id the library logs `off (no app id)` as info,
+  where the old client logged `no app id` as a warning.
+- No library bug or gap was reported.
 
 ## Answered by the user (14 Nov 2026)
 
