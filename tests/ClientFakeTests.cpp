@@ -325,6 +325,46 @@ TEST(Fake_TheSameActivityTwiceSendsOnce)
 	REQUIRE(Until(fake, client, [&] { return Sets(fake) == 2; }));
 }
 
+TEST(Fake_AnEndAndATypeArriveInTheActivity)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	LogRecorder log;
+	Client client(FakeConfig(log));
+
+	Activity activity = MakeActivity("Wave 12");
+	activity.StartUnix = 1700000000;
+	activity.EndUnix = 1700000600;
+	activity.Type = ActivityType::Competing;
+	client.SetActivity(activity);
+
+	REQUIRE(Until(fake, client, [&] { return Sets(fake) == 1; }));
+	CHECK(FindFrame(fake, 1, Internal::ActivityJson(activity, 1, Pid())) != nullptr);
+	const std::string& json = fake.Frames().back().Json;
+	CHECK(json.find("\"type\":5") != std::string::npos);
+	CHECK(json.find("\"end\":1700000600") != std::string::npos);
+}
+
+TEST(Fake_ChangingOnlyTheEndResends)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	LogRecorder log;
+	Config config = FakeConfig(log);
+	config.MinSendSeconds = 0.05;
+	Client client(config);
+	Activity activity = MakeActivity("Wave 1");
+	activity.StartUnix = 1700000000;
+	activity.EndUnix = 1700000600;
+	client.SetActivity(activity);
+	REQUIRE(Until(fake, client, [&] { return Sets(fake) == 1; }));
+
+	activity.EndUnix = 1700000900;
+	client.SetActivity(activity);
+	REQUIRE(Until(fake, client, [&] { return Sets(fake) == 2; }));
+	CHECK(fake.Frames().back().Json.find("\"end\":1700000900") != std::string::npos);
+}
+
 TEST(Fake_ClearSendsANullActivity)
 {
 	FakeDiscord fake;

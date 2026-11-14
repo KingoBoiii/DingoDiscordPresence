@@ -19,6 +19,15 @@ namespace Dingo::DiscordPresence
 		bool operator==(const Button&) const = default;
 	};
 
+	// 1 (Streaming) needs a URL and 4 (Custom) is refused over RPC, so neither is listed.
+	enum class ActivityType
+	{
+		Playing = 0,
+		Listening = 2,
+		Watching = 3,
+		Competing = 5
+	};
+
 	// What one Discord profile card shows. An empty string or a zero leaves that part off the card. Details,
 	// State and the two hover texts are cut to 128 UTF-16 units, Discord's limit, never inside a character.
 	struct Activity
@@ -39,6 +48,9 @@ namespace Dingo::DiscordPresence
 		std::string PartyId;
 		// The first two with a label and a URL are sent.
 		std::vector<Button> Buttons;
+		// Unix seconds; Discord counts down to it. Left off when it is not after StartUnix.
+		int64_t EndUnix = 0;
+		ActivityType Type = ActivityType::Playing;
 
 		bool operator==(const Activity&) const = default;
 	};

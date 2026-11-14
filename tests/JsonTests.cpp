@@ -300,6 +300,87 @@ TEST(Json_ActivityEscapesItsText)
 	CHECK(json.find("\"id\":\"i\\\"j\"") != std::string::npos);
 }
 
+namespace
+{
+	std::string Wire(const Activity& activity)
+	{
+		return Internal::ActivityJson(activity, 1, 1);
+	}
+
+	bool Has(const std::string& json, const char* part)
+	{
+		return json.find(part) != std::string::npos;
+	}
+}
+
+TEST(Json_EndWithoutStart)
+{
+	Activity activity;
+	activity.Details = "ab";
+	activity.EndUnix = 1700000600;
+	CHECK(Has(Wire(activity), "\"timestamps\":{\"end\":1700000600}"));
+}
+
+TEST(Json_StartAndEnd)
+{
+	Activity activity;
+	activity.Details = "ab";
+	activity.StartUnix = 1700000000;
+	activity.EndUnix = 1700000600;
+	CHECK(Has(Wire(activity), "\"timestamps\":{\"start\":1700000000,\"end\":1700000600}"));
+}
+
+TEST(Json_EndNotAfterStartIsDropped)
+{
+	Activity activity;
+	activity.Details = "ab";
+	activity.StartUnix = 1700000000;
+	activity.EndUnix = 1700000000;
+	CHECK(Has(Wire(activity), "\"timestamps\":{\"start\":1700000000}"));
+	activity.EndUnix = 1699999999;
+	CHECK(Has(Wire(activity), "\"timestamps\":{\"start\":1700000000}"));
+}
+
+TEST(Json_NegativeStartKeepsThePositiveEnd)
+{
+	Activity activity;
+	activity.Details = "ab";
+	activity.StartUnix = -5;
+	activity.EndUnix = 1700000600;
+	CHECK(Has(Wire(activity), "\"timestamps\":{\"end\":1700000600}"));
+}
+
+TEST(Json_NoTimestampsWhenNeitherIsSet)
+{
+	Activity activity;
+	activity.Details = "ab";
+	CHECK(!Has(Wire(activity), "timestamps"));
+}
+
+TEST(Json_ActivityTypes)
+{
+	Activity activity;
+	activity.Details = "ab";
+	CHECK(!Has(Wire(activity), "\"type\""));
+	activity.Type = ActivityType::Listening;
+	CHECK(Has(Wire(activity), "\"details\":\"ab\",\"type\":2"));
+	activity.Type = ActivityType::Watching;
+	CHECK(Has(Wire(activity), "\"details\":\"ab\",\"type\":3"));
+	activity.Type = ActivityType::Competing;
+	CHECK(Has(Wire(activity), "\"details\":\"ab\",\"type\":5"));
+}
+
+TEST(Json_UnlistedActivityTypesWriteNoKey)
+{
+	Activity activity;
+	activity.Details = "ab";
+	for (const int value : { 1, 4, 99 })
+	{
+		activity.Type = static_cast<ActivityType>(value);
+		CHECK(!Has(Wire(activity), "\"type\""));
+	}
+}
+
 TEST(Json_Clear)
 {
 	CHECK(Internal::ClearJson(3, 42) == "{\"cmd\":\"SET_ACTIVITY\",\"nonce\":\"3\",\"args\":{\"pid\":42,\"activity\":null}}");
