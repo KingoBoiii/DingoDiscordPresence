@@ -51,6 +51,7 @@ Windows and Linux in every phase: each builds and passes its tests on both befor
 | Formatting | tabs, braces on new lines |
 
 - **`<Windows.h>` macros**: a game's headers may pull in `<Windows.h>` without `NOMINMAX`. Write `(std::min)(a, b)` / `(std::max)(...)` in public headers, and never name anything `near` or `far`.
+- **X11 macros**: a Linux game may pull in `<X11/Xlib.h>`, which defines `Status`, `None`, `Success`, `True`, `False` and `Bool`. Never use those as names in a public header (hence `ConnectionStatus`).
 - In a public header, a member named after its own type spells the type qualified. MSVC accepts `Version Version`, but GCC rejects it (`-Wchanges-meaning`).
 - Scripts: `.sh` files are LF and executable in git (`git update-index --chmod=+x`), `.bat` files CRLF (`.gitattributes` enforces both).
 
@@ -65,6 +66,7 @@ Do not write code comments unless absolutely necessary. A comment must earn its 
 - **The protocol**: a frame is a little-endian `uint32` opcode, a `uint32` length, then UTF-8 JSON. Opcodes: 0 handshake, 1 frame, 2 close, 3 ping, 4 pong. Nothing is sent before Discord's `READY`. Every ping gets a pong with the same body. Replies are drained every `Update`, or a long session fills the pipe.
 - **Privacy**: `READY` carries the player's Discord user id, name and avatar. Of a received frame only the opcode and its event or command name (`FrameName`: 1 to 32 characters of `A-Z` and `_`) may be logged, and only with `Config::LogFrames`. Never the body, and a pong logs no body either.
 - **Logging**: `Config::Log`; `nullptr` means silent. The library never prints any other way.
+- **Connection status**: `GetStatus()` is live. `Config::OnStatus` fires on a change only, from the `Client::Update`, `SetEnabled` and `Clear` wrappers after the `Impl` call, never from `Shutdown`, `~Client`, `Drain` or `Disconnect`. `m_Reporting` blocks a nested report, and nothing but `m_Reporting` is touched after calling the game. It carries only the enum: none of READY's data.
 - **The games own**: the app id, the card's text, their `--discord` flags, their settings row. None of that belongs here.
 
 ## Tests

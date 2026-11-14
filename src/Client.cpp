@@ -195,6 +195,43 @@ namespace Dingo::DiscordPresence
 			return m_Pipe.IsOpen() && m_Ready;
 		}
 
+		ConnectionStatus CurrentStatus() const
+		{
+			if (m_DryRun)
+			{
+				return ConnectionStatus::DryRun;
+			}
+			if (!m_Enabled)
+			{
+				return ConnectionStatus::Disabled;
+			}
+			return IsConnected() ? ConnectionStatus::Connected : ConnectionStatus::Waiting;
+		}
+
+		// Nothing but m_Reporting is touched after the game's callback returns: it may call back into the Client.
+		void ReportStatus()
+		{
+			if (m_Reporting)
+			{
+				return;
+			}
+
+			const ConnectionStatus status = CurrentStatus();
+			if (m_LastStatus == status)
+			{
+				return;
+			}
+			m_LastStatus = status;
+			if (!m_Config.OnStatus)
+			{
+				return;
+			}
+
+			m_Reporting = true;
+			m_Config.OnStatus(status, m_Config.StatusUser);
+			m_Reporting = false;
+		}
+
 		// Nothing more is written until a fresh connect, handshake and READY. What was queued is dropped with the pipe:
 		// Discord takes the card down when the pipe closes.
 		void Disconnect(const char* why)
@@ -471,6 +508,8 @@ namespace Dingo::DiscordPresence
 		std::optional<double> m_DropSince;
 		uint32_t m_Nonce = 0;
 		std::string m_Inbound;
+		std::optional<ConnectionStatus> m_LastStatus;
+		bool m_Reporting = false;
 	};
 
 	Client::Client(const Config& config)
@@ -486,6 +525,7 @@ namespace Dingo::DiscordPresence
 	void Client::Update()
 	{
 		m_Impl->Update();
+		m_Impl->ReportStatus();
 	}
 
 	void Client::SetActivity(const Activity& activity)
@@ -496,16 +536,23 @@ namespace Dingo::DiscordPresence
 	void Client::Clear()
 	{
 		m_Impl->Clear();
+		m_Impl->ReportStatus();
 	}
 
 	void Client::SetEnabled(bool on)
 	{
 		m_Impl->SetEnabled(on);
+		m_Impl->ReportStatus();
 	}
 
 	bool Client::IsConnected() const
 	{
 		return m_Impl->IsConnected();
+	}
+
+	ConnectionStatus Client::GetStatus() const
+	{
+		return m_Impl->CurrentStatus();
 	}
 
 }

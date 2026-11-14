@@ -187,13 +187,39 @@ namespace Dingo::DiscordPresence::Internal
 	{
 		std::string json = "{\"cmd\":\"SET_ACTIVITY\",\"nonce\":\"" + std::to_string(nonce) + "\",\"args\":{\"pid\":"
 			+ std::to_string(pid) + ",\"activity\":{\"details\":" + Quoted(Truncated(activity.Details, TEXT_MAX_UNITS));
+		switch (activity.Type)
+		{
+		case ActivityType::Listening:
+			json += ",\"type\":2";
+			break;
+		case ActivityType::Watching:
+			json += ",\"type\":3";
+			break;
+		case ActivityType::Competing:
+			json += ",\"type\":5";
+			break;
+		default:
+			break;
+		}
 		if (!activity.State.empty())
 		{
 			json += ",\"state\":" + Quoted(Truncated(activity.State, TEXT_MAX_UNITS));
 		}
-		if (activity.StartUnix > 0)
+		const bool hasStart = activity.StartUnix > 0;
+		const bool hasEnd = activity.EndUnix > 0 && (!hasStart || activity.EndUnix > activity.StartUnix);
+		if (hasStart || hasEnd)
 		{
-			json += ",\"timestamps\":{\"start\":" + std::to_string(activity.StartUnix) + "}";
+			json += ",\"timestamps\":{";
+			if (hasStart)
+			{
+				json += "\"start\":" + std::to_string(activity.StartUnix);
+			}
+			if (hasEnd)
+			{
+				json += hasStart ? ",\"end\":" : "\"end\":";
+				json += std::to_string(activity.EndUnix);
+			}
+			json += "}";
 		}
 		if (!activity.PartyId.empty() && activity.PartySize > 0 && activity.PartyMax > 0)
 		{

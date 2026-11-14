@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0 (unreleased)
+
+- `Activity::EndUnix`: a countdown to a Unix time. Left off when it is not after `StartUnix`.
+- `Activity::Type`: `ActivityType::Playing`, `Listening`, `Watching` or `Competing`. Playing sends the same frame
+  as 0.1.
+- `Client::GetStatus()` and `Config::OnStatus`: `ConnectionStatus::Disabled`, `DryRun`, `Waiting` or `Connected`,
+  for a settings row. The callback fires on a change only, from `Update`, `SetEnabled` and `Clear`, and never
+  carries the player's data.
+- Binary-incompatible: `Activity` and `Config` grew. Game code compiles unchanged (every new field is appended),
+  but a game must take the 0.2 headers and libraries together and rebuild.
+
 ## 0.1.0 (2026-11-14, build 4)
 
 The first version: Headstone's Discord Rich Presence client as a standalone library.
