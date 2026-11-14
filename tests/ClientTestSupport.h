@@ -2,6 +2,8 @@
 
 #include "DingoDiscordPresence/DiscordPresence.h"
 
+#include <algorithm>
+#include <initializer_list>
 #include <string>
 #include <utility>
 #include <vector>
@@ -67,6 +69,21 @@ struct LogRecorder
 			}
 		}
 		return false;
+	}
+};
+
+struct StatusRecorder
+{
+	std::vector<Dingo::DiscordPresence::ConnectionStatus> m_Statuses;
+
+	static void Callback(Dingo::DiscordPresence::ConnectionStatus status, void* user)
+	{
+		static_cast<StatusRecorder*>(user)->m_Statuses.push_back(status);
+	}
+
+	bool Is(std::initializer_list<Dingo::DiscordPresence::ConnectionStatus> expected) const
+	{
+		return m_Statuses.size() == expected.size() && std::equal(m_Statuses.begin(), m_Statuses.end(), expected.begin());
 	}
 };
 

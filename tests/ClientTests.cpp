@@ -91,3 +91,142 @@ TEST(Client_AnEmptyAppIdIsADryRun)
 		CHECK(line.first == LogLevel::Info);
 	}
 }
+
+namespace
+{
+
+	Config StatusConfig(LogRecorder& log, StatusRecorder& status)
+	{
+		Config config = MakeConfig(log);
+		config.OnStatus = &StatusRecorder::Callback;
+		config.StatusUser = &status;
+		return config;
+	}
+
+}
+
+TEST(Client_StatusNothingListeningReportsWaitingOnce)
+{
+	LogRecorder log;
+	StatusRecorder status;
+	Client client(StatusConfig(log, status));
+	CHECK(status.Is({}));
+	CHECK(client.GetStatus() == ConnectionStatus::Waiting);
+
+	for (int i = 0; i < 5; i++)
+	{
+		client.Update();
+	}
+	CHECK(status.Is({ ConnectionStatus::Waiting }));
+}
+
+TEST(Client_StatusSetEnabledOffWhileWaitingReportsDisabled)
+{
+	LogRecorder log;
+	StatusRecorder status;
+	Client client(StatusConfig(log, status));
+	client.Update();
+
+	client.SetEnabled(false);
+	CHECK(client.GetStatus() == ConnectionStatus::Disabled);
+	CHECK(status.Is({ ConnectionStatus::Waiting, ConnectionStatus::Disabled }));
+
+	client.SetEnabled(false);
+	client.Update();
+	CHECK(status.Is({ ConnectionStatus::Waiting, ConnectionStatus::Disabled }));
+}
+
+TEST(Client_StatusSetEnabledOffBeforeAnyUpdateReportsDisabledAtOnce)
+{
+	LogRecorder log;
+	StatusRecorder status;
+	Client client(StatusConfig(log, status));
+
+	client.SetEnabled(false);
+	CHECK(status.Is({ ConnectionStatus::Disabled }));
+
+	client.Update();
+	CHECK(status.Is({ ConnectionStatus::Disabled }));
+}
+
+TEST(Client_StatusStartingDisabledReportsDisabledOnTheFirstUpdate)
+{
+	LogRecorder log;
+	StatusRecorder status;
+	Config config = StatusConfig(log, status);
+	config.Enabled = false;
+	Client client(config);
+	CHECK(status.Is({}));
+	CHECK(client.GetStatus() == ConnectionStatus::Disabled);
+
+	for (int i = 0; i < 5; i++)
+	{
+		client.Update();
+	}
+	CHECK(status.Is({ ConnectionStatus::Disabled }));
+}
+
+TEST(Client_StatusSetEnabledWithTheCurrentValueReportsNothing)
+{
+	LogRecorder log;
+	StatusRecorder status;
+	Client client(StatusConfig(log, status));
+	client.Update();
+
+	client.SetEnabled(true);
+	client.SetEnabled(true);
+	CHECK(status.Is({ ConnectionStatus::Waiting }));
+}
+
+TEST(Client_StatusADryRunReportsDryRunOnce)
+{
+	LogRecorder log;
+	StatusRecorder status;
+	Config config = StatusConfig(log, status);
+	config.AppId.clear();
+	Client client(config);
+	CHECK(client.GetStatus() == ConnectionStatus::DryRun);
+
+	for (int i = 0; i < 5; i++)
+	{
+		client.Update();
+	}
+	client.SetActivity(Activity{});
+	client.Update();
+	client.Clear();
+	CHECK(status.Is({ ConnectionStatus::DryRun }));
+}
+
+TEST(Client_StatusADryRunThatIsDisabledReportsDryRunAndTheTogglesReportNothing)
+{
+	LogRecorder log;
+	StatusRecorder status;
+	Config config = StatusConfig(log, status);
+	config.AppId.clear();
+	config.Enabled = false;
+	Client client(config);
+	CHECK(client.GetStatus() == ConnectionStatus::DryRun);
+
+	client.Update();
+	client.SetEnabled(true);
+	client.SetEnabled(false);
+	client.SetEnabled(true);
+	client.Update();
+	CHECK(status.Is({ ConnectionStatus::DryRun }));
+	CHECK(client.GetStatus() == ConnectionStatus::DryRun);
+}
+
+TEST(Client_StatusWithoutACallbackStillAnswersGetStatus)
+{
+	LogRecorder log;
+	Client client(MakeConfig(log));
+	client.Update();
+	CHECK(client.GetStatus() == ConnectionStatus::Waiting);
+
+	client.SetEnabled(false);
+	CHECK(client.GetStatus() == ConnectionStatus::Disabled);
+	client.Clear();
+	client.Update();
+	client.SetEnabled(true);
+	CHECK(client.GetStatus() == ConnectionStatus::Waiting);
+}

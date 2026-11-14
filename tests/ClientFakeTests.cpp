@@ -11,6 +11,7 @@
 #include <chrono>
 #include <string>
 #include <thread>
+#include <vector>
 
 using namespace Dingo::DiscordPresence;
 
@@ -758,4 +759,390 @@ TEST(Fake_ADisabledClientOpensNothing)
 		CHECK(fake.Connections() == 0);
 	}
 	CHECK(fake.Frames().empty());
+}
+
+namespace
+{
+
+	Config StatusConfig(LogRecorder& log, StatusRecorder& status)
+	{
+		Config config = FakeConfig(log);
+		config.OnStatus = &StatusRecorder::Callback;
+		config.StatusUser = &status;
+		return config;
+	}
+
+	struct StatusActor
+	{
+		Client* m_Client = nullptr;
+		void (*m_Act)(Client& client, ConnectionStatus status) = nullptr;
+		std::vector<ConnectionStatus> m_Seen;
+
+		static void Callback(ConnectionStatus status, void* user)
+		{
+			StatusActor* self = static_cast<StatusActor*>(user);
+			self->m_Seen.push_back(status);
+			if (self->m_Act)
+			{
+				self->m_Act(*self->m_Client, status);
+			}
+		}
+	};
+
+	Config ActorConfig(LogRecorder& log, StatusActor& actor)
+	{
+		Config config = FakeConfig(log);
+		config.OnStatus = &StatusActor::Callback;
+		config.StatusUser = &actor;
+		return config;
+	}
+
+	constexpr ConnectionStatus WAITING = ConnectionStatus::Waiting;
+	constexpr ConnectionStatus CONNECTED = ConnectionStatus::Connected;
+	constexpr ConnectionStatus DISABLED = ConnectionStatus::Disabled;
+
+}
+
+TEST(Fake_StatusReportsWaitingOnTheFirstUpdateThenConnected)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	LogRecorder log;
+	StatusRecorder status;
+	Client client(StatusConfig(log, status));
+
+	fake.Pump();
+	client.Update();
+	CHECK(status.Is({ WAITING }));
+	CHECK(client.GetStatus() == WAITING);
+
+	REQUIRE(Until(fake, client, [&] { return client.IsConnected(); }));
+	CHECK(status.Is({ WAITING, CONNECTED }));
+	CHECK(client.GetStatus() == CONNECTED);
+}
+
+TEST(Fake_StatusStaysWaitingUntilReady)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	fake.SetAutoReady(false);
+	LogRecorder log;
+	StatusRecorder status;
+	Client client(StatusConfig(log, status));
+
+	REQUIRE(Until(fake, client, [&] { return fake.CountOpcode(0) > 0; }));
+	Spin(fake, client, 30);
+	CHECK(status.Is({ WAITING }));
+
+	fake.SendReady();
+	REQUIRE(Until(fake, client, [&] { return client.IsConnected(); }));
+	CHECK(status.Is({ WAITING, CONNECTED }));
+}
+
+TEST(Fake_StatusCloseReportsWaitingAndAReconnectReportsConnectedAgain)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	LogRecorder log;
+	StatusRecorder status;
+	Client client(StatusConfig(log, status));
+	REQUIRE(Until(fake, client, [&] { return client.IsConnected(); }));
+
+	fake.SendClose();
+	REQUIRE(Until(fake, client, [&] { return status.m_Statuses.size() == 4; }));
+	CHECK(status.Is({ WAITING, CONNECTED, WAITING, CONNECTED }));
+	CHECK(fake.Connections() == 2);
+}
+
+TEST(Fake_StatusTheFakeDroppingTheConnectionReportsWaiting)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	LogRecorder log;
+	StatusRecorder status;
+	Config config = StatusConfig(log, status);
+	config.RetrySeconds = 30.0;
+	Client client(config);
+	REQUIRE(Until(fake, client, [&] { return client.IsConnected(); }));
+
+	fake.DropClient();
+	REQUIRE(Until(fake, client, [&] { return status.m_Statuses.size() == 3; }));
+	CHECK(status.Is({ WAITING, CONNECTED, WAITING }));
+	CHECK(client.GetStatus() == WAITING);
+}
+
+TEST(Fake_StatusAnOversizeLengthReportsWaiting)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	LogRecorder log;
+	StatusRecorder status;
+	Config config = StatusConfig(log, status);
+	config.RetrySeconds = 30.0;
+	Client client(config);
+	REQUIRE(Until(fake, client, [&] { return client.IsConnected(); }));
+
+	fake.SendRaw(std::string("\x01\0\0\0\xFF\xFF\xFF\x7F", 8));
+	REQUIRE(Until(fake, client, [&] { return log.Has(LogLevel::Warn, "lost (bad frame)"); }));
+	CHECK(status.Is({ WAITING, CONNECTED, WAITING }));
+}
+
+TEST(Fake_StatusAWriteTimeoutReportsWaiting)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	LogRecorder log;
+	StatusRecorder status;
+	Config config = StatusConfig(log, status);
+	config.WriteTimeoutSeconds = 0.2;
+	config.RetrySeconds = 30.0;
+	Client client(config);
+	REQUIRE(Until(fake, client, [&] { return client.IsConnected(); }));
+
+	fake.SetReading(false);
+	const std::string body = "{\"pad\":\"" + std::string(3000, 'x') + "\"}";
+	const Clock::time_point start = Clock::now();
+	bool lost = false;
+	while (!lost && Since(start) < 5.0)
+	{
+		fake.SendPing(body);
+		fake.SendPing(body);
+		fake.Pump();
+		client.Update();
+		lost = log.Has(LogLevel::Warn, "lost (write timed out)");
+		SleepFor(0.001);
+	}
+
+	REQUIRE(lost);
+	CHECK(status.Is({ WAITING, CONNECTED, WAITING }));
+}
+
+TEST(Fake_StatusDisablingWhileConnectedReportsDisabledAndEnablingReportsWaitingThenConnected)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	LogRecorder log;
+	StatusRecorder status;
+	Client client(StatusConfig(log, status));
+	REQUIRE(Until(fake, client, [&] { return client.IsConnected(); }));
+
+	client.SetEnabled(false);
+	CHECK(client.GetStatus() == DISABLED);
+	CHECK(status.Is({ WAITING, CONNECTED, DISABLED }));
+	REQUIRE(Until(fake, client, [&] { return !fake.HasClient(); }));
+
+	client.SetEnabled(true);
+	CHECK(status.Is({ WAITING, CONNECTED, DISABLED, WAITING }));
+	REQUIRE(Until(fake, client, [&] { return client.IsConnected(); }));
+	CHECK(status.Is({ WAITING, CONNECTED, DISABLED, WAITING, CONNECTED }));
+}
+
+TEST(Fake_StatusSetEnabledWithTheCurrentValueWhileConnectedReportsNothing)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	LogRecorder log;
+	StatusRecorder status;
+	Client client(StatusConfig(log, status));
+	REQUIRE(Until(fake, client, [&] { return client.IsConnected(); }));
+
+	client.SetEnabled(true);
+	CHECK(status.Is({ WAITING, CONNECTED }));
+}
+
+TEST(Fake_StatusStartingDisabledReportsDisabledOnTheFirstUpdate)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	LogRecorder log;
+	StatusRecorder status;
+	Config config = StatusConfig(log, status);
+	config.Enabled = false;
+	Client client(config);
+
+	Spin(fake, client, 10);
+	CHECK(status.Is({ DISABLED }));
+	CHECK(fake.Connections() == 0);
+}
+
+TEST(Fake_StatusADryRunReportsDryRunOnceAndItsTogglesReportNothing)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	LogRecorder log;
+	StatusRecorder status;
+	Config config = StatusConfig(log, status);
+	config.AppId.clear();
+	Client client(config);
+
+	Spin(fake, client, 10);
+	client.SetEnabled(false);
+	client.SetEnabled(true);
+	Spin(fake, client, 10);
+	CHECK(status.Is({ ConnectionStatus::DryRun }));
+	CHECK(fake.Connections() == 0);
+}
+
+TEST(Fake_StatusTenUpdatesWhileConnectedAddNoReport)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	LogRecorder log;
+	StatusRecorder status;
+	Client client(StatusConfig(log, status));
+	REQUIRE(Until(fake, client, [&] { return client.IsConnected(); }));
+
+	Spin(fake, client, 10);
+	CHECK(status.Is({ WAITING, CONNECTED }));
+}
+
+TEST(Fake_StatusPassesStatusUserThrough)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	LogRecorder log;
+	int calls = 0;
+	void* seen = nullptr;
+	struct Probe
+	{
+		int* m_Calls;
+		void** m_Seen;
+	} probe{ &calls, &seen };
+
+	Config config = FakeConfig(log);
+	config.OnStatus = [](ConnectionStatus, void* user)
+	{
+		Probe* self = static_cast<Probe*>(user);
+		++*self->m_Calls;
+		*self->m_Seen = user;
+	};
+	config.StatusUser = &probe;
+	Client client(config);
+
+	REQUIRE(Until(fake, client, [&] { return client.IsConnected(); }));
+	CHECK(calls == 2);
+	CHECK(seen == &probe);
+}
+
+TEST(Fake_StatusWithoutACallbackStillAnswersGetStatus)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	LogRecorder log;
+	Client client(FakeConfig(log));
+	CHECK(client.GetStatus() == WAITING);
+
+	REQUIRE(Until(fake, client, [&] { return client.IsConnected(); }));
+	CHECK(client.GetStatus() == CONNECTED);
+
+	client.SetEnabled(false);
+	CHECK(client.GetStatus() == DISABLED);
+}
+
+TEST(Fake_StatusDestroyingAConnectedClientMakesNoCall)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	LogRecorder log;
+	StatusRecorder status;
+	{
+		Client client(StatusConfig(log, status));
+		client.SetActivity(MakeActivity("Wave 1"));
+		REQUIRE(Until(fake, client, [&] { return Sets(fake) == 1; }));
+		CHECK(status.Is({ WAITING, CONNECTED }));
+	}
+	CHECK(status.Is({ WAITING, CONNECTED }));
+}
+
+TEST(Fake_StatusSetActivityInsideTheCallbackIsSent)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	LogRecorder log;
+	StatusActor actor;
+	actor.m_Act = [](Client& client, ConnectionStatus status)
+	{
+		if (status == CONNECTED)
+		{
+			client.SetActivity(MakeActivity("From callback"));
+		}
+	};
+	Client client(ActorConfig(log, actor));
+	actor.m_Client = &client;
+
+	REQUIRE(Until(fake, client, [&] { return Sets(fake) == 1; }));
+	CHECK(fake.Frames().back().Json.find("\"details\":\"From callback\"") != std::string::npos);
+}
+
+TEST(Fake_StatusClearInsideTheCallbackSendsTheNullActivity)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	LogRecorder log;
+	StatusActor actor;
+	actor.m_Act = [](Client& client, ConnectionStatus status)
+	{
+		if (status == CONNECTED)
+		{
+			client.Clear();
+		}
+	};
+	Client client(ActorConfig(log, actor));
+	actor.m_Client = &client;
+
+	REQUIRE(Until(fake, client, [&] { return Clears(fake) == 1; }));
+	CHECK(Sets(fake) == 0);
+	CHECK(actor.m_Seen.size() == 2);
+}
+
+TEST(Fake_StatusSetEnabledOffInsideTheCallbackMakesNoNestedCallAndTheNextUpdateReportsDisabled)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	LogRecorder log;
+	StatusActor actor;
+	actor.m_Act = [](Client& client, ConnectionStatus status)
+	{
+		if (status == CONNECTED)
+		{
+			client.SetEnabled(false);
+		}
+	};
+	Client client(ActorConfig(log, actor));
+	actor.m_Client = &client;
+
+	REQUIRE(Until(fake, client, [&] { return actor.m_Seen.size() >= 2; }));
+	CHECK(actor.m_Seen.size() == 2);
+	CHECK(client.GetStatus() == DISABLED);
+
+	client.Update();
+	REQUIRE(actor.m_Seen.size() == 3);
+	CHECK(actor.m_Seen[2] == DISABLED);
+	Spin(fake, client, 5);
+	CHECK(actor.m_Seen.size() == 3);
+}
+
+TEST(Fake_StatusACallbackThatTogglesOnEveryCallTerminatesWithOneReportPerUpdate)
+{
+	FakeDiscord fake;
+	REQUIRE(fake.Ok());
+	LogRecorder log;
+	StatusActor actor;
+	actor.m_Act = [](Client& client, ConnectionStatus status)
+	{
+		client.SetEnabled(status == DISABLED);
+	};
+	Client client(ActorConfig(log, actor));
+	actor.m_Client = &client;
+
+	for (int i = 1; i <= 10; i++)
+	{
+		fake.Pump();
+		client.Update();
+		CHECK(actor.m_Seen.size() == static_cast<size_t>(i));
+	}
+	for (size_t i = 0; i < actor.m_Seen.size(); i++)
+	{
+		CHECK(actor.m_Seen[i] == (i % 2 == 0 ? WAITING : DISABLED));
+	}
 }

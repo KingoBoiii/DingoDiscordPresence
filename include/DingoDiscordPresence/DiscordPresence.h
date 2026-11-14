@@ -65,6 +65,21 @@ namespace Dingo::DiscordPresence
 	// READY frame carries the player's Discord user id, name and avatar.
 	using LogFn = void(*)(LogLevel level, std::string_view message, void* user);
 
+	enum class ConnectionStatus
+	{
+		// Config::Enabled is false, or SetEnabled(false) was called.
+		Disabled,
+		// An empty AppId: nothing is ever opened. Wins over Disabled.
+		DryRun,
+		// Enabled, and no READY yet: Discord is not running, or it is connecting, or between retries.
+		Waiting,
+		// The pipe is open and READY came: IsConnected() is true.
+		Connected
+	};
+
+	// Called on the thread that calls the Client, when the status changes. It carries no data of the player's.
+	using StatusFn = void(*)(ConnectionStatus status, void* user);
+
 	struct Config
 	{
 		// The Discord application's id. A public number, as text: a snowflake overflows 32 bits.
@@ -85,6 +100,11 @@ namespace Dingo::DiscordPresence
 		bool LogFrames = false;
 		LogFn Log = nullptr;
 		void* LogUser = nullptr;
+		// Called on a change only, from Update, SetEnabled and Clear: the first call of any of them reports the
+		// starting status. Never from the destructor. It may call SetActivity, Clear, SetEnabled and GetStatus,
+		// but not Update, and it must not throw or destroy the Client. What it changes is reported by the next call.
+		StatusFn OnStatus = nullptr;
+		void* StatusUser = nullptr;
 	};
 
 	// Discord Rich Presence over the Discord client's local pipe. No call waits on Discord and no thread is
@@ -108,6 +128,8 @@ namespace Dingo::DiscordPresence
 		// Off clears the card and disconnects. On connects at the next Update and sends the remembered activity.
 		void SetEnabled(bool on);
 		bool IsConnected() const;
+		// Live, and allocates nothing. Config::OnStatus reports its changes.
+		ConnectionStatus GetStatus() const;
 
 	private:
 		struct Impl;
