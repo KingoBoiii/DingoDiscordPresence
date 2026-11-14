@@ -40,3 +40,13 @@ namespace TestFramework
 			::TestFramework::ReportFailure(#cond, __FILE__, __LINE__); \
 		} \
 	} while (false)
+
+#define REQUIRE(cond) \
+	do \
+	{ \
+		if (!(cond)) \
+		{ \
+			::TestFramework::ReportFailure(#cond, __FILE__, __LINE__); \
+			return; \
+		} \
+	} while (false)

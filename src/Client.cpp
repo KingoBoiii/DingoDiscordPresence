@@ -27,23 +27,33 @@ namespace Dingo::Nametag
 			return std::chrono::duration<double>(Clock::now().time_since_epoch()).count();
 		}
 
+		std::string OpName(uint32_t opcode)
+		{
+			switch (opcode)
+			{
+			case Internal::OP_FRAME: return "FRAME";
+			case Internal::OP_CLOSE: return "CLOSE";
+			case Internal::OP_PING: return "PING";
+			case Internal::OP_PONG: return "PONG";
+			default: return std::to_string(opcode);
+			}
+		}
+
 	}
 
 	struct Client::Impl
 	{
 		explicit Impl(const Config& config)
-			: m_Config(config), m_Enabled(config.Enabled), m_Gate(config.MinSendSeconds)
+			: m_Config(config), m_Enabled(config.Enabled), m_DryRun(config.AppId.empty()), m_Gate(config.MinSendSeconds)
 		{
 			if (config.PipeIndex >= 0 && config.PipeIndex < PIPE_COUNT)
 			{
 				m_PipeIndex = config.PipeIndex;
 			}
 
-			if (m_Config.AppId.empty())
+			if (m_DryRun)
 			{
-				Warn("no app id");
-				m_Enabled = false;
-				m_NoAppId = true;
+				Info("off (no app id)");
 				return;
 			}
 
@@ -59,6 +69,15 @@ namespace Dingo::Nametag
 			}
 
 			const double now = NowSeconds();
+			if (m_DryRun)
+			{
+				if (m_Pending && m_Gate.CanSend(now))
+				{
+					SendActivity(now);
+				}
+				return;
+			}
+
 			if (!m_Pipe.IsOpen())
 			{
 				if (now < m_NextTry)
@@ -73,15 +92,21 @@ namespace Dingo::Nametag
 			}
 
 			Drain();
-			if (!m_Pipe.IsOpen() || !m_Ready || !m_Pending)
+			if (!m_Pipe.IsOpen())
 			{
 				return;
 			}
-			if (!m_Gate.CanSend(now))
+
+			SendQueued(now);
+			// A dropped activity that SetActivity then took back leaves nothing to retry, so no Sent would ever stop the clock.
+			if (!m_Pong && !m_ClearPending && !m_Pending)
 			{
-				return;
+				m_DropSince.reset();
 			}
-			SendActivity(now);
+			if (m_Pipe.IsOpen() && m_DropSince && now - *m_DropSince >= m_Config.WriteTimeoutSeconds)
+			{
+				Disconnect("write timed out");
+			}
 		}
 
 		void SetActivity(const Activity& activity)
@@ -102,43 +127,67 @@ namespace Dingo::Nametag
 			m_Activity.reset();
 		}
 
+		// Past the send gate, and not a send for it: only an activity counts against Discord's rate limit.
 		void ClearCard()
 		{
 			m_Pending = false;
 			ForgetSent();
-			if (!m_Pipe.IsOpen() || !m_Ready)
+			m_ClearPending = false;
+			if (m_DryRun)
+			{
+				if (m_Enabled)
+				{
+					LogDryRun(Internal::ClearJson(++m_Nonce, Internal::Pipe::ProcessId()));
+				}
+				return;
+			}
+			if (!IsConnected())
 			{
 				return;
 			}
-			if (WriteFrame(Internal::OP_FRAME, Internal::ClearJson(++m_Nonce, Internal::Pipe::ProcessId())) == Internal::WriteResult::Sent)
-			{
-				Info("cleared");
-			}
+			m_ClearPending = true;
+			SendClear();
 		}
 
 		void SetEnabled(bool on)
 		{
-			if (m_NoAppId || on == m_Enabled)
+			if (on == m_Enabled)
 			{
 				return;
 			}
 
-			m_Enabled = on;
 			if (!on)
 			{
 				Shutdown();
+				m_Enabled = false;
 				return;
 			}
+			m_Enabled = true;
 			m_NextTry = 0.0;
 			m_Pending = m_Activity.has_value();
 		}
 
-		// The clear may still be in flight behind a full pipe, and closing now would cancel it and leave the card showing.
+		// The clear may still be in flight, or dropped, behind a full pipe, and closing now would cancel it and leave the
+		// card showing.
 		void Shutdown()
 		{
 			ClearCard();
 			m_Pipe.Flush(200);
+			if (m_ClearPending)
+			{
+				SendClear();
+			}
 			Disconnect(nullptr);
+		}
+
+		// Discord shows nothing of ours any more: after a clear, or because the pipe closed.
+		void ForgetSent()
+		{
+			m_Sent.reset();
+			if (!m_Config.KeepSendGapAcrossReconnects)
+			{
+				m_Gate.Reset();
+			}
 		}
 
 		bool IsConnected() const
@@ -146,13 +195,8 @@ namespace Dingo::Nametag
 			return m_Pipe.IsOpen() && m_Ready;
 		}
 
-		void ForgetSent()
-		{
-			m_Sent.reset();
-			m_Gate.Reset();
-		}
-
-		// Nothing more is written until a fresh connect, handshake and READY.
+		// Nothing more is written until a fresh connect, handshake and READY. What was queued is dropped with the pipe:
+		// Discord takes the card down when the pipe closes.
 		void Disconnect(const char* why)
 		{
 			if (!m_Pipe.IsOpen())
@@ -163,6 +207,9 @@ namespace Dingo::Nametag
 			m_Pipe.Close();
 			m_Ready = false;
 			ForgetSent();
+			m_ClearPending = false;
+			m_Pong.reset();
+			m_DropSince.reset();
 			m_Inbound.clear();
 			m_NextTry = NowSeconds() + m_Config.RetrySeconds;
 			if (why)
@@ -172,8 +219,8 @@ namespace Dingo::Nametag
 		}
 
 		// A failed write is Discord gone: the link is dropped and retried later. A dropped one (a full pipe) leaves the
-		// connection as it is.
-		Internal::WriteResult WriteFrame(uint32_t opcode, std::string_view json)
+		// connection as it is, and starts the clock of the write timeout.
+		Internal::WriteResult WriteFrame(uint32_t opcode, const char* name, std::string_view json)
 		{
 			if (!m_Pipe.IsOpen())
 			{
@@ -184,6 +231,21 @@ namespace Dingo::Nametag
 			if (result == Internal::WriteResult::Failed)
 			{
 				Disconnect("write failed");
+			}
+			else if (result == Internal::WriteResult::Dropped)
+			{
+				if (!m_DropSince)
+				{
+					m_DropSince = NowSeconds();
+				}
+			}
+			else
+			{
+				m_DropSince.reset();
+				if (m_Config.LogFrames)
+				{
+					LogFrame(std::string("send ") + name, opcode == Internal::OP_PONG ? std::string_view() : json);
+				}
 			}
 			return result;
 		}
@@ -206,7 +268,11 @@ namespace Dingo::Nametag
 				m_Inbound.clear();
 				ForgetSent();
 				m_Pending = m_Activity.has_value();
-				WriteFrame(Internal::OP_HANDSHAKE, Internal::HandshakeJson(m_Config.AppId));
+				if (WriteFrame(Internal::OP_HANDSHAKE, "HANDSHAKE", Internal::HandshakeJson(m_Config.AppId))
+					== Internal::WriteResult::Dropped)
+				{
+					Disconnect("handshake dropped");
+				}
 				return;
 			}
 
@@ -242,6 +308,11 @@ namespace Dingo::Nametag
 					return;
 				}
 
+				if (m_Config.LogFrames)
+				{
+					LogReceived(frame);
+				}
+
 				if (frame.Opcode == Internal::OP_FRAME)
 				{
 					if (!m_Ready && frame.Json.find("\"evt\":\"READY\"") != std::string::npos)
@@ -252,7 +323,9 @@ namespace Dingo::Nametag
 				}
 				else if (frame.Opcode == Internal::OP_PING)
 				{
-					if (WriteFrame(Internal::OP_PONG, frame.Json) == Internal::WriteResult::Failed)
+					m_Pong = std::move(frame.Json);
+					SendPong();
+					if (!m_Pipe.IsOpen())
 					{
 						return;
 					}
@@ -265,6 +338,54 @@ namespace Dingo::Nametag
 			}
 		}
 
+		// What a write that was dropped left behind goes first, in this order: the pong, the clear, then the activity. A
+		// dropped one stops the rest, which would be dropped as well.
+		void SendQueued(double now)
+		{
+			if (!SendPong() || !m_Ready || !SendClear())
+			{
+				return;
+			}
+			if (m_Pending && m_Gate.CanSend(now))
+			{
+				SendActivity(now);
+			}
+		}
+
+		// True when nothing is left to send. Only the latest pong is kept.
+		bool SendPong()
+		{
+			if (!m_Pong)
+			{
+				return true;
+			}
+
+			const std::string body = *m_Pong;
+			if (WriteFrame(Internal::OP_PONG, "PONG", body) != Internal::WriteResult::Sent)
+			{
+				return false;
+			}
+			m_Pong.reset();
+			return true;
+		}
+
+		bool SendClear()
+		{
+			if (!m_ClearPending)
+			{
+				return true;
+			}
+
+			if (WriteFrame(Internal::OP_FRAME, "SET_ACTIVITY", Internal::ClearJson(++m_Nonce, Internal::Pipe::ProcessId()))
+				!= Internal::WriteResult::Sent)
+			{
+				return false;
+			}
+			m_ClearPending = false;
+			Info("cleared");
+			return true;
+		}
+
 		void SendActivity(double now)
 		{
 			if (!m_Activity)
@@ -274,7 +395,11 @@ namespace Dingo::Nametag
 			}
 
 			const std::string json = Internal::ActivityJson(*m_Activity, ++m_Nonce, Internal::Pipe::ProcessId());
-			if (WriteFrame(Internal::OP_FRAME, json) != Internal::WriteResult::Sent)
+			if (m_DryRun)
+			{
+				LogDryRun(json);
+			}
+			else if (WriteFrame(Internal::OP_FRAME, "SET_ACTIVITY", json) != Internal::WriteResult::Sent)
 			{
 				return;
 			}
@@ -283,6 +408,32 @@ namespace Dingo::Nametag
 			m_Sent = m_Activity;
 			m_Gate.Sent(now);
 			Info("activity \"{}\" / \"{}\"", m_Activity->Details, m_Activity->State);
+		}
+
+		void LogFrame(const std::string& what, std::string_view json) const
+		{
+			std::string line = what;
+			if (!json.empty())
+			{
+				line += ' ';
+				line += json;
+			}
+			Info("{}", line);
+		}
+
+		void LogDryRun(const std::string& json) const
+		{
+			if (m_Config.LogFrames)
+			{
+				LogFrame("send (dry run) SET_ACTIVITY", json);
+			}
+		}
+
+		// Only the opcode and the frame's event or command name: the body is Discord's, and READY's holds the player's
+		// user id, name and avatar.
+		void LogReceived(const Internal::Frame& frame) const
+		{
+			LogFrame("recv " + OpName(frame.Opcode), Internal::FrameName(frame.Json));
 		}
 
 		template<typename... Args>
@@ -305,7 +456,7 @@ namespace Dingo::Nametag
 
 		Config m_Config;
 		bool m_Enabled;
-		bool m_NoAppId = false;
+		bool m_DryRun;
 		int m_PipeIndex = -1;
 		Internal::Pipe m_Pipe;
 		Internal::SendGate m_Gate;
@@ -315,6 +466,9 @@ namespace Dingo::Nametag
 		std::optional<Activity> m_Activity;
 		bool m_Pending = false;
 		std::optional<Activity> m_Sent;
+		bool m_ClearPending = false;
+		std::optional<std::string> m_Pong;
+		std::optional<double> m_DropSince;
 		uint32_t m_Nonce = 0;
 		std::string m_Inbound;
 	};

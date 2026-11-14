@@ -1,63 +1,10 @@
 #include "TestFramework.h"
 
+#include "ClientTestSupport.h"
+
 #include "DingoNametag/Nametag.h"
 
-#include <string>
-#include <utility>
-#include <vector>
-
 using namespace Dingo::Nametag;
-
-namespace
-{
-
-	struct LogRecorder
-	{
-		std::vector<std::pair<LogLevel, std::string>> m_Lines;
-
-		static void Callback(LogLevel level, std::string_view message, void* user)
-		{
-			static_cast<LogRecorder*>(user)->m_Lines.emplace_back(level, std::string(message));
-		}
-
-		int Count(const std::string& message) const
-		{
-			int count = 0;
-			for (const auto& line : m_Lines)
-			{
-				if (line.second == message)
-				{
-					count++;
-				}
-			}
-			return count;
-		}
-
-		bool Has(LogLevel level, const std::string& message) const
-		{
-			for (const auto& line : m_Lines)
-			{
-				if (line.first == level && line.second == message)
-				{
-					return true;
-				}
-			}
-			return false;
-		}
-	};
-
-	Config MakeConfig(LogRecorder& log)
-	{
-		Config config;
-		config.AppId = "123456789012345678";
-		config.PipeIndex = 9;
-		config.RetrySeconds = 0.0;
-		config.Log = &LogRecorder::Callback;
-		config.LogUser = &log;
-		return config;
-	}
-
-}
 
 TEST(Client_DisabledNeverConnects)
 {
@@ -117,14 +64,16 @@ TEST(Client_LogsThePinnedPipe)
 	CHECK(log.Has(LogLevel::Info, "presence on | pipe pinned to discord-ipc-9"));
 }
 
-TEST(Client_AnEmptyAppIdStaysOff)
+TEST(Client_AnEmptyAppIdIsADryRun)
 {
 	LogRecorder log;
 	Config config = MakeConfig(log);
 	config.AppId.clear();
 	{
 		Client client(config);
-		CHECK(log.Has(LogLevel::Warn, "no app id"));
+		CHECK(log.Has(LogLevel::Info, "off (no app id)"));
+		client.SetEnabled(true);
+		client.SetEnabled(false);
 		client.SetEnabled(true);
 		for (int i = 0; i < 3; i++)
 		{
@@ -134,6 +83,11 @@ TEST(Client_AnEmptyAppIdStaysOff)
 		client.Update();
 		CHECK(!client.IsConnected());
 	}
-	CHECK(log.Count("no app id") == 1);
+	CHECK(log.Count("off (no app id)") == 1);
 	CHECK(log.Count("not running") == 0);
+	CHECK(log.Count("presence on | pipe pinned to discord-ipc-9") == 0);
+	for (const auto& line : log.m_Lines)
+	{
+		CHECK(line.first == LogLevel::Info);
+	}
 }

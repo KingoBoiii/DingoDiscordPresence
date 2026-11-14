@@ -25,13 +25,24 @@ TEST(SendGate_TheSecondWaitsForTheGap)
 	CHECK(gate.CanSend(130.0));
 }
 
+TEST(SendGate_TheGapHoldsWhateverHappensBetweenTwoSends)
+{
+	SendGate gate(15.0);
+	gate.Sent(100.0);
+	CHECK(!gate.CanSend(100.5));
+	CHECK(!gate.CanSend(101.0));
+	CHECK(!gate.CanSend(114.99));
+	CHECK(gate.CanSend(115.0));
+}
+
 TEST(SendGate_ResetLetsTheNextSendGoAtOnce)
 {
 	SendGate gate(15.0);
 	gate.Sent(100.0);
-	CHECK(!gate.CanSend(101.0));
 	gate.Reset();
-	CHECK(gate.CanSend(101.0));
+	CHECK(gate.CanSend(100.0));
+	gate.Sent(100.0);
+	CHECK(!gate.CanSend(101.0));
 }
 
 TEST(SendGate_AZeroGapNeverBlocks)

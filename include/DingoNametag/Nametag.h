@@ -4,13 +4,26 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace Dingo::Nametag
 {
 
-	// What one Discord profile card shows. An empty string or a zero leaves that part off the card.
+	// Discord shows buttons to other people only, never on the player's own card.
+	struct Button
+	{
+		// Cut to 32 UTF-16 units.
+		std::string Label;
+		std::string Url;
+
+		bool operator==(const Button&) const = default;
+	};
+
+	// What one Discord profile card shows. An empty string or a zero leaves that part off the card. Details,
+	// State and the two hover texts are cut to 128 UTF-16 units, Discord's limit, never inside a character.
 	struct Activity
 	{
+		// Discord rejects the whole activity when Details or State is a single character.
 		std::string Details;
 		std::string State;
 		// Unix seconds; Discord counts the elapsed time up from it.
@@ -18,10 +31,14 @@ namespace Dingo::Nametag
 		// The key of an art asset uploaded for the Discord application, and its hover text.
 		std::string LargeImage;
 		std::string LargeText;
+		std::string SmallImage;
+		std::string SmallText;
 		int PartySize = 0;
 		int PartyMax = 0;
 		// Discord shows the party's size only when it has an id.
 		std::string PartyId;
+		// The first two with a label and a URL are sent.
+		std::vector<Button> Buttons;
 
 		bool operator==(const Activity&) const = default;
 	};
@@ -32,13 +49,14 @@ namespace Dingo::Nametag
 		Warn
 	};
 
-	// Called on the thread that calls the Client. The message never holds what Discord sent: its READY frame
-	// carries the player's Discord user id, name and avatar.
+	// Called on the thread that calls the Client. The message never holds the body of what Discord sent: its
+	// READY frame carries the player's Discord user id, name and avatar.
 	using LogFn = void(*)(LogLevel level, std::string_view message, void* user);
 
 	struct Config
 	{
 		// The Discord application's id. A public number, as text: a snowflake overflows 32 bits.
+		// Empty is a dry run: no pipe is ever opened, and with LogFrames the log shows what would be sent.
 		std::string AppId;
 		bool Enabled = true;
 		// -1 tries discord-ipc-0 to discord-ipc-9. 0 to 9 tries that one only.
@@ -46,6 +64,13 @@ namespace Dingo::Nametag
 		double RetrySeconds = 10.0;
 		// Discord drops activities sent faster than about one per 15 s.
 		double MinSendSeconds = 15.0;
+		// False: the first activity on a new connection, or after a Clear, goes at once, so a card is back as
+		// soon as Discord is. True: two activities are never closer than MinSendSeconds, whatever happens between.
+		bool KeepSendGapAcrossReconnects = false;
+		// A Discord that has not read for this long is taken as hung: the link is dropped and retried.
+		double WriteTimeoutSeconds = 5.0;
+		// Logs every frame sent, with its JSON, and the opcode and event name of every frame received.
+		bool LogFrames = false;
 		LogFn Log = nullptr;
 		void* LogUser = nullptr;
 	};

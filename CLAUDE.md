@@ -21,7 +21,9 @@ src/                     Client.cpp (the protocol and its timing); Frame.h, Json
   Platform/              Pipe.h (internal pipe API), WinPipe.cpp (named pipe, overlapped I/O) |
                          PosixPipe.cpp (Unix socket): the only place for Windows.h, sys/socket.h,
                          unistd.h; premake builds one per system
-tests/                   DingoNametag-Tests: own runner (TestFramework.h), one file per area
+tests/                   DingoNametag-Tests: own runner (TestFramework.h), one file per area;
+                         FakeDiscord.h + FakeDiscordWindows.cpp | FakeDiscordPosix.cpp: the test-only fake Discord
+tools/                   fake-discord.ps1: the fake pipe for captures and by-hand tests (Windows)
 scripts/windows/         Generate.bat, Build.bat, Test.bat
 scripts/linux/           Generate.sh, Build.sh, Test.sh
 vendor/premake/          Premake binaries — NEVER modify vendor code
@@ -58,13 +60,15 @@ Do not write code comments unless absolutely necessary. A comment must earn its 
 - **Nothing waits on Discord.** The Windows pipe is opened without `WaitNamedPipe`, reads go behind `PeekNamedPipe`, and writes are overlapped with one in flight at a time. The Linux socket is non-blocking and every send is `MSG_DONTWAIT`. A hung Discord must never stall a frame.
 - **No threads, no globals.** The game calls `Client::Update` once a frame. All state is in the `Client` (a pimpl), so tests run several clients in one process.
 - **The protocol**: a frame is a little-endian `uint32` opcode, a `uint32` length, then UTF-8 JSON. Opcodes: 0 handshake, 1 frame, 2 close, 3 ping, 4 pong. Nothing is sent before Discord's `READY`. Every ping gets a pong with the same body. Replies are drained every `Update`, or a long session fills the pipe.
-- **Privacy**: `READY` carries the player's Discord user id, name and avatar. Nothing Discord sends reaches the log callback.
+- **Privacy**: `READY` carries the player's Discord user id, name and avatar. Of a received frame only the opcode and its event or command name (`FrameName`: 1 to 32 characters of `A-Z` and `_`) may be logged, and only with `Config::LogFrames`. Never the body, and a pong logs no body either.
 - **Logging**: `Config::Log`; `nullptr` means silent. The library never prints any other way.
 - **The games own**: the app id, the card's text, their `--discord` flags, their settings row. None of that belongs here.
 
 ## Tests
 
 `DingoNametag-Tests` uses its own runner (`tests/TestFramework.h`): `TEST(name)` registers a case, `CHECK(cond)` records a failure with file and line, and `main` prints `PASS`/`FAIL` per case and a summary, exiting non-zero on any failure. Tests that open a pipe pin index 9, where a real Discord never is (it takes the lowest free index), so a test run can never touch the developer's own Discord profile.
+
+The fake Discord (`tests/FakeDiscord.h`) is test-only, single-threaded and never blocks: a test alternates `fake.Pump()` and `client.Update()`. It listens on `discord-ipc-9` only. It records every frame it receives, answers the handshake with a READY that carries the marker user name `SECRET-USER` (a test proves no log line contains it), and can send a ping, raw bytes (a split frame, an oversize length) and CLOSE, drop the connection, and stop reading. On Linux it first points `XDG_RUNTIME_DIR` at a fresh `mkdtemp` folder and restores it afterwards, so a test can never reach a real Discord socket; keep that rule for any new fake or test that opens a pipe. Real sleeps only where the send gate or the write timeout needs them (Windows sleeps in 15 ms steps; spin with `yield` otherwise), so the run stays around a second.
 
 ## Workflow
 

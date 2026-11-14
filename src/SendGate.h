@@ -3,8 +3,8 @@
 namespace Dingo::Nametag::Internal
 {
 
-	// Discord's rate limit: the first activity on a connection goes at once, then at most one per gap. Time is
-	// passed in, in seconds, so the gate never reads a clock.
+	// Discord's rate limit: the first activity goes at once, then at most one per gap. Time is passed in, in
+	// seconds, so the gate never reads a clock.
 	class SendGate
 	{
 	public:

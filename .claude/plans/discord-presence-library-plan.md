@@ -24,7 +24,7 @@ Status: ⬜ todo · 🟨 in progress · ✅ done
 | # | Phase | You get | Est. | Needs | St. |
 |---|---|---|---|---|---|
 | 1 | Repo and extraction | Headstone's client as a library with no engine dependency, building on Windows and Linux | 0.5 d | — | ✅ |
-| 2 | 200 OK's features and tests | Buttons, images, dry run, frame log, write timeout, field limits. Unit tests and a fake-Discord test on both platforms | 0.75 d | 1 | ⬜ |
+| 2 | 200 OK's features and tests | Buttons, images, dry run, frame log, write timeout, field limits. Unit tests and a fake-Discord test on both platforms | 0.75 d | 1 | ✅ |
 | 3 | CI and release v0.1.0 | Six zips on a GitHub release (3 configs × 2 platforms) | 0.25 d | 2 | ⬜ |
 | 4 | 200 OK uses it | Replaces phase 1 of 200 OK's plan (0.75 d becomes 0.25 d). Linux no longer deferred there | 0.25 d | 3 | ⬜ |
 | 5 | Headstone uses it | `DiscordPresence.cpp` shrinks to a ~60-line adapter. Same behaviour on your profile | 0.25 d + your live test | 4 | ⬜ |
@@ -108,7 +108,7 @@ namespace Dingo::Nametag
 |---|---|---|---|
 | Clear | `"activity":null` | `args` with only `pid` | Headstone's. It is verified live |
 | Retry | 10 s | 30 s | Config, default 10 s |
-| Gate after reconnect | First send goes at once | Never two sends inside 15 s | 200 OK's. `LastSend` is never reset |
+| Gate after reconnect | First send goes at once | Never two sends inside 15 s | An option, `Config::KeepSendGapAcrossReconnects`. Default: Headstone's |
 | Hung Discord | Next frame is dropped, link stays | Write pending 5 s drops the link | Both: drop the frame, then drop the link at the timeout |
 | Empty app id | Disabled, one warning | Dry run with frame log | Dry run. Headstone sees the same result: nothing sent |
 | Line length | Not cut | Cut at 120 code points | Library cuts at 128 UTF-16 units on a code point boundary, as a safety net. 200 OK's own cut stays |
@@ -193,12 +193,35 @@ a local checkout. Vendored to `vendor/DingoNametag/` (Windows) and `vendor/Dingo
 - No test reaches `READY`, ping and pong, or a write drop yet: that needs the fake server (D7). Add one for the
   `Clear` fix.
 
-### Phase 2 — 200 OK's features and tests (~0.75 d) ⬜
-- [ ] Buttons, small image, `LogFrames`, the dry run, the write timeout, the UTF-16 cut, the strict gate (D4).
-- [ ] The test project: unit tests and the in-process fake server (D7).
-- [ ] `tools/fake-discord.ps1` from Headstone's `discord-pipe.ps1`, with 200 OK's close and hang modes.
-- Verify: tests green on both platforms.
-- Commit: `feat(client): add buttons, dry run and the write timeout`
+### Phase 2 — 200 OK's features and tests (~0.75 d) ✅
+- [x] Buttons, small image, `LogFrames`, the dry run, the write timeout, the UTF-16 cut, the strict gate (D4).
+- [x] The test project: unit tests and the in-process fake server (D7).
+- [x] `tools/fake-discord.ps1` from Headstone's `discord-pipe.ps1`, with 200 OK's close and hang modes.
+
+**As built (14 Nov 2026):**
+- 67 tests pass in Debug, Release and Distribution on Windows (v145) and Linux (WSL, GCC 13.3), in about 2 s per
+  configuration. 21 of them run against a fake Discord inside the test project (`tests/FakeDiscord*`), on pipe
+  index 9 only; on Linux it points `XDG_RUNTIME_DIR` at a temp folder first.
+- Fresh review: one bug, fixed. A dropped activity write that `SetActivity` then took back left the write timer
+  running, and a healthy link was dropped after `WriteTimeoutSeconds`. Two test gaps it named are closed, each
+  checked by removing the line it guards.
+- The dry run is an empty app id only. 200 OK's plan also wanted it whenever the link is down: not built. A
+  game that wants the log in a sandboxed run passes an empty `AppId`.
+- `LogFrames` logs a received frame as its opcode and its event or command name only, and that name only when
+  it is 1 to 32 characters of `A-Z` and `_`. A pong is logged without its body.
+- The write timeout lives in `Client.cpp`, the same on both platforms. `src/Platform/` is unchanged since
+  phase 1.
+- A dropped clear and a dropped pong are retried every `Update`. A dropped handshake drops the link.
+  `~Client` retries a dropped clear once after its 200 ms flush.
+- **The send gap is an option** (the user, 14 Nov 2026: "Make it an option/setting when initializing this
+  library"): `Config::KeepSendGapAcrossReconnects`. False, the default, is Headstone's shipped rule: the first
+  activity on a new connection or after a `Clear` goes at once. True is D4's strict rule: two activities are
+  never closer than `MinSendSeconds`. Both have fake-server tests.
+- `tools/fake-discord.ps1` has `-CloseAfterSeconds` and `-HangAfterSeconds`. Smoke-tested by hand on index 9,
+  not yet against a game.
+
+**Not tested:** a dropped handshake (a fresh pipe always has room), and anything against a real Discord. That
+is phase 4 and 5's live test.
 
 ### Phase 3 — CI and release (~0.25 d) ⬜
 - [ ] Read DingoNet's `build.yml` and `release.yml`, then copy them. Build and test on both platforms per push.
