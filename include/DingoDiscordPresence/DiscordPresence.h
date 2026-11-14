@@ -108,7 +108,7 @@ namespace Dingo::DiscordPresence
 	};
 
 	// Discord Rich Presence over the Discord client's local pipe. No call waits on Discord and no thread is
-	// started: the game calls Update once a frame.
+	// started: the game calls Update once a frame. Config::OnStatus hears when the connection changes.
 	class Client
 	{
 	public:

@@ -25,6 +25,24 @@ client.SetActivity(activity);
 client.Update();                        // once a frame
 ```
 
+A countdown, and a verb other than "Playing":
+
+```cpp
+activity.EndUnix = matchEndsAtUnix;     // Discord counts down to it
+activity.Type = Dingo::DiscordPresence::ActivityType::Competing;   // "Competing in <app>"
+```
+
+The connection's status, for a settings row:
+
+```cpp
+config.OnStatus = [](Dingo::DiscordPresence::ConnectionStatus status, void* user) { /* on a change only */ };
+// or poll it each frame:
+if (client.GetStatus() == Dingo::DiscordPresence::ConnectionStatus::Waiting) { /* "Discord not running" */ }
+```
+
+`OnStatus` may call `SetActivity`, `Clear`, `SetEnabled` and `GetStatus`. It must not call `Update`, throw or
+destroy the client.
+
 ## Build
 
 | | Windows | Linux |
