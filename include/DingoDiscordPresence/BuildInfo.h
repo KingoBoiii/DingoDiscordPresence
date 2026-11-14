@@ -1,0 +1,6 @@
+#pragma once
+
+#define DDP_VERSION_MAJOR 0
+#define DDP_VERSION_MINOR 1
+#define DDP_VERSION_PATCH 0
+#define DDP_VERSION_BUILD 0

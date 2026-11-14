@@ -7,11 +7,13 @@ DingoDiscordPresence is a cross-platform C++20 static library that shows Discord
 ## Build system
 
 - **Tool**: Premake5 5.0.0-beta8, committed in `vendor/premake/bin/` (`premake5.exe` and the Linux `premake5`).
-- **Scripts**: `scripts/windows/*.bat` and `scripts/linux/*.sh` (`Generate`, `Build`, `Test`), runnable from any directory. A configuration argument is optional (`Debug` by default; `Release`, `Distribution`; Linux also takes lower case).
+- **Scripts**: `scripts/windows/*.bat` and `scripts/linux/*.sh` (`Generate`, `Build`, `Test`, `Package`), runnable from any directory. A configuration argument is optional (`Debug` by default; `Release`, `Distribution`; Linux also takes lower case).
 - **Warnings**: `warnings "Extra"` + `fatalwarnings` on both platforms (`/W4 /WX`, `-Wall -Wextra -Werror`). A build with a warning is a failed build.
 - **Configs**: `Debug` (`DDP_DEBUG`), `Release` (`DDP_RELEASE`, symbols on), `Distribution` (`DDP_DIST`, no symbols). `DDP_PLATFORM_WINDOWS` / `DDP_PLATFORM_LINUX`.
 - **Output**: `build/bin/<Config>-<system>-x86_64/<Project>/`, intermediates in `build/bin-int/`. `DingoDiscordPresence` is a static lib, `DingoDiscordPresence-Tests` a console app (its project files land in `tests/`, git-ignored).
 - **Linux from Windows**: WSL (Ubuntu 24.04, GCC 13): `wsl -e sh scripts/linux/Test.sh`.
+- **CI** (`.github/workflows/`): `build.yml` builds and tests Debug, Release and Distribution on `windows-latest` and `ubuntu-latest` on every push and PR to main. `release.yml` packages all three configs on both OSes when a release with a `vX.Y.Z` tag is published; the Windows runners lack v145, so CI builds with `/p:PlatformToolset=v143`. Details: `scripts/README.md`.
+- **Version**: `VERSION` holds `major.minor`; CI and `Package` overwrite `include/DingoDiscordPresence/BuildInfo.h` (`DDP_VERSION_*`, read by `Dingo::DiscordPresence::GetVersion()`). The checked-in `BuildInfo.h` is a `0.1.0` placeholder.
 
 ## Project structure
 
@@ -24,10 +26,11 @@ src/                     Client.cpp (the protocol and its timing); Frame.h, Json
 tests/                   DingoDiscordPresence-Tests: own runner (TestFramework.h), one file per area;
                          FakeDiscord.h + FakeDiscordWindows.cpp | FakeDiscordPosix.cpp: the test-only fake Discord
 tools/                   fake-discord.ps1: the fake pipe for captures and by-hand tests (Windows)
-scripts/windows/         Generate.bat, Build.bat, Test.bat
-scripts/linux/           Generate.sh, Build.sh, Test.sh
+scripts/windows/         Generate.bat, Build.bat, Test.bat, Package.bat
+scripts/linux/           Generate.sh, Build.sh, Test.sh, Package.sh
 vendor/premake/          Premake binaries — NEVER modify vendor code
 .claude/plans/           Plans (discord-presence-library-plan.md is the v0.1 plan)
+CHANGELOG.md             Released versions
 ```
 
 ## Cross-platform (hard requirement)

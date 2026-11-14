@@ -32,8 +32,12 @@ client.Update();                        // once a frame
 | Generate | `scripts\windows\Generate.bat` | `scripts/linux/Generate.sh` |
 | Build | `scripts\windows\Build.bat [Debug\|Release\|Distribution]` | `scripts/linux/Build.sh [config]` |
 | Test | `scripts\windows\Test.bat [config]` | `scripts/linux/Test.sh [config]` |
+| Package | `scripts\windows\Package.bat [config...]` | `scripts/linux/Package.sh [config...]` |
 
 Windows needs Visual Studio with the C++ workload (toolset v145). Linux needs GCC 13 or newer and `make`.
+
+`Package` writes one zip per configuration into `build/package/`: the headers, the static library, the fake
+Discord pipe for captures, the licence and `VERSION.txt`. A release on GitHub carries the same six zips.
 
 ## Licence
 
