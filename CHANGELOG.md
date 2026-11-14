@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.1.0 (2026-11-14, build 4)
 
 The first version: Headstone's Discord Rich Presence client as a standalone library.
 

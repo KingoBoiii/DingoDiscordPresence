@@ -25,7 +25,7 @@ Status: ⬜ todo · 🟨 in progress · ✅ done
 |---|---|---|---|---|---|
 | 1 | Repo and extraction | Headstone's client as a library with no engine dependency, building on Windows and Linux | 0.5 d | — | ✅ |
 | 2 | 200 OK's features and tests | Buttons, images, dry run, frame log, write timeout, field limits. Unit tests and a fake-Discord test on both platforms | 0.75 d | 1 | ✅ |
-| 3 | CI and release v0.1.0 | Six zips on a GitHub release (3 configs × 2 platforms) | 0.25 d | 2 | 🟨 |
+| 3 | CI and release v0.1.0 | Six zips on a GitHub release (3 configs × 2 platforms) | 0.25 d | 2 | ✅ |
 | 4 | 200 OK uses it | Replaces phase 1 of 200 OK's plan (0.75 d becomes 0.25 d). Linux no longer deferred there | 0.25 d | 3 | ⬜ |
 | 5 | Headstone uses it | `DiscordPresence.cpp` shrinks to a ~60-line adapter. Same behaviour on your profile | 0.25 d + your live test | 4 | ⬜ |
 
@@ -223,12 +223,12 @@ a local checkout. Vendored to `vendor/DingoDiscordPresence/` (Windows) and `vend
 **Not tested:** a dropped handshake (a fresh pipe always has room), and anything against a real Discord. That
 is phase 4 and 5's live test.
 
-### Phase 3 — CI and release (~0.25 d) 🟨
+### Phase 3 — CI and release (~0.25 d) ✅
 - [x] Read DingoNet's `build.yml` and `release.yml`, then copy them. Build and test on both platforms per push.
 - [x] Package scripts for both platforms (D6). Tag `v0.1.0`.
 - Verify: six zips on the release, each with the layout in D6.
 
-**As built (14 Nov 2026), waiting on the GitHub repo:**
+**As built (14 Nov 2026):**
 - `Package.bat` and `Package.sh` write the six zips locally with D6's layout. `tools/fake-discord.ps1` is in
   the Linux zips too.
 - `Dingo::DiscordPresence::GetVersion()`, `Version.h` and a stamped `BuildInfo.h`, as DingoNet. 68 tests on both
@@ -236,8 +236,9 @@ is phase 4 and 5's live test.
 - `build.yml` and `release.yml` are DingoNet's with the names changed. CI builds Windows with toolset `v143`;
   a local Release build with `v143` compiles clean.
 - Fresh review: no findings.
-- **Not verified:** neither workflow has run. That needs the public repo, a push of `main`, and a published
-  `v0.1.0` release. Each is the user's go-ahead.
+- The repo is public at `KingoBoiii/DingoDiscordPresence`. `build.yml`'s first run passed on all six jobs.
+- `v0.1.0` is published (build 4, commit `9d59f80`). `release.yml` attached the six zips,
+  `DingoDiscordPresence-0.1.0.4-<Config>-<windows|linux>-x86_64.zip`. The games fetch version `0.1.0`, build `4`.
 
 ### Phase 4 — 200 OK uses it (~0.25 d) ⬜
 - [ ] `scripts/fetch-dingodiscordpresence.{ps1,sh}`, premake `includedirs`/`libdirs`/`links` for both systems.
