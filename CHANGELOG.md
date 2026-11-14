@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 (unreleased)
+## 0.2.0 (2026-11-14, build 10)
 
 - `Activity::EndUnix`: a countdown to a Unix time. Left off when it is not after `StartUnix`.
 - `Activity::Type`: `ActivityType::Playing`, `Listening`, `Watching` or `Competing`. Playing sends the same frame
