@@ -1,0 +1,46 @@
+{
+  "model": "claude-sonnet-5-5",
+  "effortLevel": "medium",
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "50"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "PowerShell(git status)",
+      "Bash(git diff *)",
+      "PowerShell(git diff *)",
+      "Bash(git log *)",
+      "PowerShell(git log *)",
+      "Bash(git ls-files *)",
+      "PowerShell(git ls-files *)",
+      "Bash(git branch --list *)",
+      "PowerShell(git branch --list *)",
+      "Bash(git branch --show-current)",
+      "PowerShell(git branch --show-current)",
+      "Bash(scripts/windows/Generate.bat *)",
+      "PowerShell(scripts/windows/Generate.bat *)",
+      "Bash(scripts\windows\Generate.bat *)",
+      "PowerShell(scripts\windows\Generate.bat *)",
+      "Bash(scripts/windows/Build.bat *)",
+      "PowerShell(scripts/windows/Build.bat *)",
+      "Bash(scripts\windows\Build.bat *)",
+      "PowerShell(scripts\windows\Build.bat *)",
+      "Bash(scripts/windows/Test.bat *)",
+      "PowerShell(scripts/windows/Test.bat *)",
+      "Bash(scripts\windows\Test.bat *)",
+      "PowerShell(scripts\windows\Test.bat *)",
+      "Bash(wsl -e sh scripts/linux/Generate.sh *)",
+      "PowerShell(wsl -e sh scripts/linux/Generate.sh *)",
+      "Bash(wsl -e sh scripts/linux/Build.sh *)",
+      "PowerShell(wsl -e sh scripts/linux/Build.sh *)",
+      "Bash(wsl -e sh scripts/linux/Test.sh *)",
+      "PowerShell(wsl -e sh scripts/linux/Test.sh *)",
+      "Bash(gh pr view *)",
+      "PowerShell(gh pr view *)",
+      "Bash(gh issue list *)",
+      "PowerShell(gh issue list *)"
+    ],
+    "deny": []
+  }
+}
