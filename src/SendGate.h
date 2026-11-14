@@ -1,6 +1,6 @@
 #pragma once
 
-namespace Dingo::Nametag::Internal
+namespace Dingo::DiscordPresence::Internal
 {
 
 	// Discord's rate limit: the first activity goes at once, then at most one per gap. Time is passed in, in

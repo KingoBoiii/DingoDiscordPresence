@@ -1,20 +1,20 @@
 @echo off
 setlocal
-set "DNT_ARGS=%*"
+set "DDP_ARGS=%*"
 set CONFIG=%~1
 if "%CONFIG%"=="" set CONFIG=Debug
 pushd "%~dp0..\.."
 
 call "%~dp0Build.bat" %CONFIG% || goto :fail
-"build\bin\%CONFIG%-windows-x86_64\DingoNametag-Tests\DingoNametag-Tests.exe" || goto :fail
+"build\bin\%CONFIG%-windows-x86_64\DingoDiscordPresence-Tests\DingoDiscordPresence-Tests.exe" || goto :fail
 
 popd
-if not defined DNT_ARGS call :explorer "%~f0" && pause
+if not defined DDP_ARGS call :explorer "%~f0" && pause
 exit /b 0
 
 :fail
 popd
-if not defined DNT_ARGS call :explorer "%~f0" && pause
+if not defined DDP_ARGS call :explorer "%~f0" && pause
 exit /b 1
 
 :explorer

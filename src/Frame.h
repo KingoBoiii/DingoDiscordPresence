@@ -5,7 +5,7 @@
 #include <string>
 #include <string_view>
 
-namespace Dingo::Nametag::Internal
+namespace Dingo::DiscordPresence::Internal
 {
 
 	constexpr uint32_t OP_HANDSHAKE = 0;

@@ -2,7 +2,7 @@
 
 #include "Frame.h"
 
-using namespace Dingo::Nametag::Internal;
+using namespace Dingo::DiscordPresence::Internal;
 
 TEST(Frame_EncodeWritesALittleEndianHeader)
 {

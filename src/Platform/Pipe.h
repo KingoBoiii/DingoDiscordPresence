@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-namespace Dingo::Nametag::Internal
+namespace Dingo::DiscordPresence::Internal
 {
 
 	enum class WriteResult

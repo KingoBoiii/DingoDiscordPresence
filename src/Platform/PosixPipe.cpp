@@ -8,7 +8,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-namespace Dingo::Nametag::Internal
+namespace Dingo::DiscordPresence::Internal
 {
 
 	namespace

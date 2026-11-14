@@ -1,4 +1,4 @@
-# DingoNametag
+# DingoDiscordPresence
 
 Discord Rich Presence for DingoEngine games, as a small C++20 static library for Windows and Linux.
 
@@ -10,13 +10,13 @@ Used by *Headstone* and *200 OK*.
 ## Use
 
 ```cpp
-#include <DingoNametag/Nametag.h>
+#include <DingoDiscordPresence/DiscordPresence.h>
 
-Dingo::Nametag::Config config;
+Dingo::DiscordPresence::Config config;
 config.AppId = "1234567890123456789";   // your Discord application's id
-Dingo::Nametag::Client client(config);
+Dingo::DiscordPresence::Client client(config);
 
-Dingo::Nametag::Activity activity;
+Dingo::DiscordPresence::Activity activity;
 activity.Details = "Wave 12";
 activity.State = "The Churchyard";
 activity.LargeImage = "logo";           // an art asset uploaded for the application

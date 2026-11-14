@@ -2,7 +2,7 @@
 
 #include "Json.h"
 
-using namespace Dingo::Nametag;
+using namespace Dingo::DiscordPresence;
 
 TEST(Json_QuotedEscapesQuoteAndBackslash)
 {

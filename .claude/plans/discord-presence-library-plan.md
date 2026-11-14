@@ -1,4 +1,4 @@
-# DingoNametag — Discord Presence Library Plan
+# DingoDiscordPresence — Discord Presence Library Plan
 
 **Goal:** one small C++ static library that speaks Discord's local Rich Presence pipe, shipped prebuilt for
 Windows and Linux, and used by both Headstone and 200 OK. Each game keeps only its own text, flags and settings.
@@ -11,7 +11,7 @@ Windows and Linux, and used by both Headstone and 200 OK. Each game keeps only i
 - DingoNet's packaging: `Headstone/scripts/fetch-dingonet.ps1` and `Headstone/premake5.lua:225-228`, `:267-269`.
   The library ships the same way.
 
-**How to run it:** one phase at a time; say **"execute nametag phase N"**. Each phase is implementer, builds and
+**How to run it:** one phase at a time; say **"execute presence phase N"**. Each phase is implementer, builds and
 tests on Windows and Linux in all three configurations, a fresh reviewer, one commit. Push only when you say.
 
 **Not read for this plan:** DingoNet's `build.yml` and `release.yml`. Phase 3 copies them, so read them first.
@@ -35,9 +35,9 @@ All together: about **2 days**. 200 OK saves 0.5 d of it back.
 
 ### D1. A new repo, shaped like DingoNet
 
-- Public repo `KingoBoiii/DingoNametag`, premake, static library only, no dependencies beyond the OS.
-- Namespace `Dingo::Nametag` (as DingoNet is `Dingo::Net`), macro prefix `DNT_`. The public header is
-  `include/DingoNametag/Nametag.h`.
+- Public repo `KingoBoiii/DingoDiscordPresence`, premake, static library only, no dependencies beyond the OS.
+- Namespace `Dingo::DiscordPresence` (as DingoNet is `Dingo::Net`), macro prefix `DDP_`. The public header is
+  `include/DingoDiscordPresence/DiscordPresence.h`.
 - `VERSION`, `CHANGELOG.md`, `scripts/windows/Package.bat` and a Linux package script, as DingoNet has.
 
 ### D2. What is in the library, and what stays in the games
@@ -54,8 +54,8 @@ All together: about **2 days**. 200 OK saves 0.5 d of it back.
 ### D3. The API: Headstone's behaviour, 200 OK's fields
 
 ```cpp
-// include/DingoNametag/Nametag.h: no platform types, no engine types
-namespace Dingo::Nametag
+// include/DingoDiscordPresence/DiscordPresence.h: no platform types, no engine types
+namespace Dingo::DiscordPresence
 {
     struct Button { std::string Label, Url; };
     struct Activity
@@ -131,17 +131,17 @@ This is the fragile part. The API passes `std::string` and `std::vector`, so the
 ### D6. The package
 
 One zip per config per platform, named like DingoNet's:
-`DingoNametag-<version>.<build>-<Config>-<windows|linux>-x86_64.zip`
+`DingoDiscordPresence-<version>.<build>-<Config>-<windows|linux>-x86_64.zip`
 
 ```
-include/DingoNametag/          public headers
-lib/<Config>/DingoNametag.lib  or libDingoNametag.a
+include/DingoDiscordPresence/          public headers
+lib/<Config>/DingoDiscordPresence.lib  or libDingoDiscordPresence.a
 tools/fake-discord.ps1          the fake pipe for captures (from Headstone's scripts/dev/discord-pipe.ps1)
 VERSION.txt
 ```
 
-Each game gets `scripts/fetch-dingonametag.ps1` and `.sh`, copied from `fetch-dingonet`, including `-Source` for
-a local checkout. Vendored to `vendor/DingoNametag/` (Windows) and `vendor/DingoNametag/linux/`.
+Each game gets `scripts/fetch-dingodiscordpresence.ps1` and `.sh`, copied from `fetch-dingonet`, including `-Source` for
+a local checkout. Vendored to `vendor/DingoDiscordPresence/` (Windows) and `vendor/DingoDiscordPresence/linux/`.
 
 ### D7. Testing lives in the library
 
@@ -230,8 +230,8 @@ is phase 4 and 5's live test.
 - Commit: `ci: build, test and package for Windows and Linux`
 
 ### Phase 4 — 200 OK uses it (~0.25 d) ⬜
-- [ ] `scripts/fetch-dingonametag.{ps1,sh}`, premake `includedirs`/`libdirs`/`links` for both systems.
-- [ ] Edit 200 OK's plan: phase 1 becomes "vendor DingoNametag and wire `GameLayer`". Drop `src/Discord/`,
+- [ ] `scripts/fetch-dingodiscordpresence.{ps1,sh}`, premake `includedirs`/`libdirs`/`links` for both systems.
+- [ ] Edit 200 OK's plan: phase 1 becomes "vendor DingoDiscordPresence and wire `GameLayer`". Drop `src/Discord/`,
   `Json.h`, `SendGate.h`, `fake-discord.ps1`, `test/DiscordTests.cpp` and the non-Windows stub. Take Linux out of
   Deferred. Phases 2 and 3 stay as written.
 - Verify: 200 OK's phase 1 capture against the fake pipe on index 9.
@@ -245,10 +245,10 @@ is phase 4 and 5's live test.
 - [ ] `docs/build.md:84-111`: point to the library.
 - Verify: the fake-pipe capture, then your profile with real Discord on Windows and Linux. Toggle the setting off
   and on.
-- Commit: `refactor(discord): use DingoNametag for the pipe client`
+- Commit: `refactor(discord): use DingoDiscordPresence for the pipe client`
 
 ## Answered by the user (14 Nov 2026)
 
-1. **Name:** `DingoNametag` (said with a "maybe"). Still free to change until phase 1 creates the repo.
+1. **Name:** `DingoDiscordPresence` (said with a "maybe"). Still free to change until phase 1 creates the repo.
 2. **Public repo with release zips**, like DingoNet: "Yes to both".
 3. **Order:** 200 OK first (phase 4), Headstone second (phase 5): "Yes to both".

@@ -1,6 +1,6 @@
 ---
 name: plan-run
-description: Run a DingoNametag plan in .claude/plans/ from a keeper session, one sub-session per phase, local or cloud depending on where the keeper runs. Each sub-session implements, builds, tests, reviews, fixes, commits, pushes, updates the PR description and reports back; the keeper updates the plan, cleans the sub-session up and tells the user when a live test is needed. Use when the user says "run <name> with plan-run", "orchestrate <name>", "one session per phase", or "spawn a session for phase N". Not for a single phase in this session: that is "execute <name> phase N" (feature-plan skill).
+description: Run a DingoDiscordPresence plan in .claude/plans/ from a keeper session, one sub-session per phase, local or cloud depending on where the keeper runs. Each sub-session implements, builds, tests, reviews, fixes, commits, pushes, updates the PR description and reports back; the keeper updates the plan, cleans the sub-session up and tells the user when a live test is needed. Use when the user says "run <name> with plan-run", "orchestrate <name>", "one session per phase", or "spawn a session for phase N". Not for a single phase in this session: that is "execute <name> phase N" (feature-plan skill).
 ---
 
 # Plan-run: a keeper session and one sub-session per phase
@@ -52,7 +52,7 @@ and tested. No sub-session ever reaches a real Discord: tests pin pipe index 9.
      prompt stalls it for good.
    - The plan branch and its PR are on `origin`. An unpushed branch is invisible to a sub-session.
 4. **Names mean something.** A session-generated branch name like `claude/serene-babbage-nrcnd7` is
-   never the plan branch. A worktree is named after the plan (`nametag-<name>`), never after the
+   never the plan branch. A worktree is named after the plan (`presence-<name>`), never after the
    session. Session titles carry the plan and the phase.
 5. **Phases the keeper never hands out:** a phase whose Needs says "your live test" is spawned only
    after the user's notes are in, with the notes verbatim in the prompt.
@@ -109,7 +109,7 @@ Deltas from the normal loop:
 - **Verify the report, don't trust it:**
   1. `git fetch origin <branch>`; the reported sha is on it, and the plan file changed in that commit.
   2. `git diff <before>..<sha> --stat` matches the phase's files. A change under `src/Platform/` or in
-     `include/DingoNametag/` that the phase did not name is a stop: review it yourself first.
+     `include/DingoDiscordPresence/` that the phase did not name is a stop: review it yourself first.
   3. Local keeper: run `scripts\windows\Test.bat Release` yourself on the fetched commit.
   4. Anything under "unverified" is on the user's list, not forgotten.
 

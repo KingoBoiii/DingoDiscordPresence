@@ -1,6 +1,6 @@
 #pragma once
 
-#include "DingoNametag/Nametag.h"
+#include "DingoDiscordPresence/DiscordPresence.h"
 
 #include <string>
 #include <utility>
@@ -8,9 +8,9 @@
 
 struct LogRecorder
 {
-	std::vector<std::pair<Dingo::Nametag::LogLevel, std::string>> m_Lines;
+	std::vector<std::pair<Dingo::DiscordPresence::LogLevel, std::string>> m_Lines;
 
-	static void Callback(Dingo::Nametag::LogLevel level, std::string_view message, void* user)
+	static void Callback(Dingo::DiscordPresence::LogLevel level, std::string_view message, void* user)
 	{
 		static_cast<LogRecorder*>(user)->m_Lines.emplace_back(level, std::string(message));
 	}
@@ -28,7 +28,7 @@ struct LogRecorder
 		return count;
 	}
 
-	bool Has(Dingo::Nametag::LogLevel level, const std::string& message) const
+	bool Has(Dingo::DiscordPresence::LogLevel level, const std::string& message) const
 	{
 		for (const auto& line : m_Lines)
 		{
@@ -70,9 +70,9 @@ struct LogRecorder
 	}
 };
 
-inline Dingo::Nametag::Config MakeConfig(LogRecorder& log)
+inline Dingo::DiscordPresence::Config MakeConfig(LogRecorder& log)
 {
-	Dingo::Nametag::Config config;
+	Dingo::DiscordPresence::Config config;
 	config.AppId = "123456789012345678";
 	config.PipeIndex = 9;
 	config.RetrySeconds = 0.0;

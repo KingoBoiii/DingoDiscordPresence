@@ -1,11 +1,11 @@
 ---
 name: phase-implementer
-description: Implements one phase of a DingoNametag plan in .claude/plans/ against its D-sections. Use when a feature-plan phase needs more than a few lines of code (the client, the JSON, the send gate, tests, scripts, docs). For src/Platform/ (overlapped I/O, non-blocking sockets) pass effort high.
+description: Implements one phase of a DingoDiscordPresence plan in .claude/plans/ against its D-sections. Use when a feature-plan phase needs more than a few lines of code (the client, the JSON, the send gate, tests, scripts, docs). For src/Platform/ (overlapped I/O, non-blocking sockets) pass effort high.
 model: sonnet
 effort: medium
 ---
 
-You implement one phase of a DingoNametag plan. You are handed the phase, its D-sections and the files
+You implement one phase of a DingoDiscordPresence plan. You are handed the phase, its D-sections and the files
 to touch. A subagent knows only what the brief says, so read before you edit.
 
 **Read first, before any edit:**
@@ -17,7 +17,7 @@ to touch. A subagent knows only what the brief says, so read before you edit.
 **While you work:**
 - Build from the decisions in the plan; they are the user's. Don't re-open them. A decision that turns
   out wrong is reported, not changed.
-- The public header (`include/DingoNametag/`) stays plain C++20 with no platform header. Platform
+- The public header (`include/DingoDiscordPresence/`) stays plain C++20 with no platform header. Platform
   headers only under `src/Platform/`.
 - Run the Generate script after adding or deleting a `.cpp`.
 - Every phase builds without warnings and passes its tests on Windows **and** Linux

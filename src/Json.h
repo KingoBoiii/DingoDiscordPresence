@@ -1,6 +1,6 @@
 #pragma once
 
-#include "DingoNametag/Nametag.h"
+#include "DingoDiscordPresence/DiscordPresence.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -8,7 +8,7 @@
 #include <string>
 #include <string_view>
 
-namespace Dingo::Nametag::Internal
+namespace Dingo::DiscordPresence::Internal
 {
 
 	// A JSON string literal, quotes included. UTF-8 passes through: JSON takes it raw.

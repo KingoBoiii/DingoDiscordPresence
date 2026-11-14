@@ -10,7 +10,7 @@
 #endif
 #include <Windows.h>
 
-namespace Dingo::Nametag::Internal
+namespace Dingo::DiscordPresence::Internal
 {
 
 	namespace

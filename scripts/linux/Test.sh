@@ -8,4 +8,4 @@ case "$config" in
 esac
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 "$root/scripts/linux/Build.sh" "$config"
-exec "$root/build/bin/$config-linux-x86_64/DingoNametag-Tests/DingoNametag-Tests"
+exec "$root/build/bin/$config-linux-x86_64/DingoDiscordPresence-Tests/DingoDiscordPresence-Tests"

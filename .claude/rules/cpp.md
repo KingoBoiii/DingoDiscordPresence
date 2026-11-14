@@ -5,8 +5,8 @@ paths: ["src/**/*.cpp", "src/**/*.h", "include/**/*.h", "tests/**/*.cpp", "tests
 - C++20, MSVC v145 and GCC 13. `/W4 /WX` and `-Wall -Wextra -Werror`: a warning is a failed build on
   either platform, so build both before calling anything done.
 - Tabs, Allman braces, `m_` member prefix, `s_` statics, PascalCase types and methods, `UPPER_SNAKE`
-  constants and macros, `DNT_` macro prefix. Namespace `Dingo::Nametag`, internals in
-  `Dingo::Nametag::Internal`.
+  constants and macros, `DDP_` macro prefix. Namespace `Dingo::DiscordPresence`, internals in
+  `Dingo::DiscordPresence::Internal`.
 - Comments: almost none. Only a load-bearing "why" (a constraint, an invariant, a non-obvious
   consequence). No narration, no dates, no plan references, no change tracking.
 - The public header is the ABI of a prebuilt package that two games link. Changing a struct or a

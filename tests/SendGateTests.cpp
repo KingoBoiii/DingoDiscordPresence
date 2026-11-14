@@ -2,7 +2,7 @@
 
 #include "SendGate.h"
 
-using Dingo::Nametag::Internal::SendGate;
+using Dingo::DiscordPresence::Internal::SendGate;
 
 TEST(SendGate_TheFirstSendGoesAtOnce)
 {

@@ -1,4 +1,4 @@
-#ifdef DNT_PLATFORM_WINDOWS
+#ifdef DDP_PLATFORM_WINDOWS
 
 #include "FakeDiscord.h"
 

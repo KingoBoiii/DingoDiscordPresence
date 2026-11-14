@@ -1,8 +1,8 @@
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
-workspace "DingoNametag"
+workspace "DingoDiscordPresence"
 	configurations { "Debug", "Release", "Distribution" }
-	startproject "DingoNametag-Tests"
+	startproject "DingoDiscordPresence-Tests"
 	language "C++"
 	cppdialect "C++20"
 	staticruntime "Off"
@@ -15,33 +15,33 @@ workspace "DingoNametag"
 	filter "system:windows"
 		toolset "v145"
 		systemversion "latest"
-		defines { "DNT_PLATFORM_WINDOWS" }
+		defines { "DDP_PLATFORM_WINDOWS" }
 		buildoptions { "/utf-8" }
 
 	filter "system:linux"
 		toolset "gcc"
-		defines { "DNT_PLATFORM_LINUX" }
+		defines { "DDP_PLATFORM_LINUX" }
 
 	filter "configurations:Debug"
 		runtime "Debug"
 		symbols "On"
-		defines { "DNT_DEBUG" }
+		defines { "DDP_DEBUG" }
 
 	filter "configurations:Release"
 		runtime "Release"
 		optimize "On"
 		symbols "On"
-		defines { "DNT_RELEASE" }
+		defines { "DDP_RELEASE" }
 
 	filter "configurations:Distribution"
 		runtime "Release"
 		optimize "On"
 		symbols "Off"
-		defines { "DNT_DIST" }
+		defines { "DDP_DIST" }
 
 	filter {}
 
-project "DingoNametag"
+project "DingoDiscordPresence"
 	kind "StaticLib"
 	-- A game or engine module may link the library into a shared object.
 	pic "On"
@@ -50,7 +50,7 @@ project "DingoNametag"
 
 	files
 	{
-		"include/DingoNametag/**.h",
+		"include/DingoDiscordPresence/**.h",
 		"src/**.h",
 		"src/**.cpp"
 	}
@@ -69,7 +69,7 @@ project "DingoNametag"
 
 	filter {}
 
-project "DingoNametag-Tests"
+project "DingoDiscordPresence-Tests"
 	kind "ConsoleApp"
 	location "tests"
 	targetdir ("%{wks.location}/build/bin/" .. outputdir .. "/%{prj.name}")
@@ -87,4 +87,4 @@ project "DingoNametag-Tests"
 		"src"
 	}
 
-	links { "DingoNametag" }
+	links { "DingoDiscordPresence" }

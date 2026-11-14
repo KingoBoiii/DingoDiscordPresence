@@ -2,9 +2,9 @@
 
 #include "ClientTestSupport.h"
 
-#include "DingoNametag/Nametag.h"
+#include "DingoDiscordPresence/DiscordPresence.h"
 
-using namespace Dingo::Nametag;
+using namespace Dingo::DiscordPresence;
 
 TEST(Client_DisabledNeverConnects)
 {

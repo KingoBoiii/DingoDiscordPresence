@@ -1,11 +1,11 @@
 @echo off
 setlocal
-set "DNT_ARGS=%*"
+set "DDP_ARGS=%*"
 set CONFIG=%~1
 if "%CONFIG%"=="" set CONFIG=Debug
 pushd "%~dp0..\.."
 
-if not exist DingoNametag.slnx (
+if not exist DingoDiscordPresence.slnx (
 	call vendor\premake\bin\premake5.exe vs2026 || goto :fail
 )
 
@@ -16,15 +16,15 @@ if not defined MSBUILD (
 	goto :fail
 )
 
-"%MSBUILD%" DingoNametag.slnx /p:Configuration=%CONFIG% /p:Platform=x64 /m /v:minimal /nologo || goto :fail
+"%MSBUILD%" DingoDiscordPresence.slnx /p:Configuration=%CONFIG% /p:Platform=x64 /m /v:minimal /nologo || goto :fail
 
 popd
-if not defined DNT_ARGS call :explorer "%~f0" && pause
+if not defined DDP_ARGS call :explorer "%~f0" && pause
 exit /b 0
 
 :fail
 popd
-if not defined DNT_ARGS call :explorer "%~f0" && pause
+if not defined DDP_ARGS call :explorer "%~f0" && pause
 exit /b 1
 
 :explorer

@@ -6,7 +6,7 @@
 #include <string_view>
 #include <vector>
 
-namespace Dingo::Nametag
+namespace Dingo::DiscordPresence
 {
 
 	// Discord shows buttons to other people only, never on the player's own card.

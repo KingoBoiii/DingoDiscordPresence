@@ -1,27 +1,27 @@
-# DingoNametag — Claude Context
+# DingoDiscordPresence — Claude Context
 
 ## What this project is
 
-DingoNametag is a cross-platform C++20 static library that shows Discord Rich Presence for DingoEngine games. It speaks the Discord client's local pipe protocol itself (the one the old `discord-rpc` library spoke): no Discord SDK, no DLL, no account linking. It is extracted from *Headstone*'s shipped client (`Headstone/src/Platform/DiscordPresence.cpp`) and is used by *Headstone* and *200 OK*. The library is engine-free: no DingoEngine header, and it logs through a callback the game passes in. Games consume a prebuilt package, laid out like DingoNet's: release zips per configuration, unpacked to `vendor/DingoNametag/{include, lib/<Config>, VERSION.txt}`.
+DingoDiscordPresence is a cross-platform C++20 static library that shows Discord Rich Presence for DingoEngine games. It speaks the Discord client's local pipe protocol itself (the one the old `discord-rpc` library spoke): no Discord SDK, no DLL, no account linking. It is extracted from *Headstone*'s shipped client (`Headstone/src/Platform/DiscordPresence.cpp`) and is used by *Headstone* and *200 OK*. The library is engine-free: no DingoEngine header, and it logs through a callback the game passes in. Games consume a prebuilt package, laid out like DingoNet's: release zips per configuration, unpacked to `vendor/DingoDiscordPresence/{include, lib/<Config>, VERSION.txt}`.
 
 ## Build system
 
 - **Tool**: Premake5 5.0.0-beta8, committed in `vendor/premake/bin/` (`premake5.exe` and the Linux `premake5`).
 - **Scripts**: `scripts/windows/*.bat` and `scripts/linux/*.sh` (`Generate`, `Build`, `Test`), runnable from any directory. A configuration argument is optional (`Debug` by default; `Release`, `Distribution`; Linux also takes lower case).
 - **Warnings**: `warnings "Extra"` + `fatalwarnings` on both platforms (`/W4 /WX`, `-Wall -Wextra -Werror`). A build with a warning is a failed build.
-- **Configs**: `Debug` (`DNT_DEBUG`), `Release` (`DNT_RELEASE`, symbols on), `Distribution` (`DNT_DIST`, no symbols). `DNT_PLATFORM_WINDOWS` / `DNT_PLATFORM_LINUX`.
-- **Output**: `build/bin/<Config>-<system>-x86_64/<Project>/`, intermediates in `build/bin-int/`. `DingoNametag` is a static lib, `DingoNametag-Tests` a console app (its project files land in `tests/`, git-ignored).
+- **Configs**: `Debug` (`DDP_DEBUG`), `Release` (`DDP_RELEASE`, symbols on), `Distribution` (`DDP_DIST`, no symbols). `DDP_PLATFORM_WINDOWS` / `DDP_PLATFORM_LINUX`.
+- **Output**: `build/bin/<Config>-<system>-x86_64/<Project>/`, intermediates in `build/bin-int/`. `DingoDiscordPresence` is a static lib, `DingoDiscordPresence-Tests` a console app (its project files land in `tests/`, git-ignored).
 - **Linux from Windows**: WSL (Ubuntu 24.04, GCC 13): `wsl -e sh scripts/linux/Test.sh`.
 
 ## Project structure
 
 ```
-include/DingoNametag/    Public API (Nametag.h): plain C++20, no platform header
+include/DingoDiscordPresence/    Public API (DiscordPresence.h): plain C++20, no platform header
 src/                     Client.cpp (the protocol and its timing); Frame.h, Json.h, SendGate.h (pure, unit-tested)
   Platform/              Pipe.h (internal pipe API), WinPipe.cpp (named pipe, overlapped I/O) |
                          PosixPipe.cpp (Unix socket): the only place for Windows.h, sys/socket.h,
                          unistd.h; premake builds one per system
-tests/                   DingoNametag-Tests: own runner (TestFramework.h), one file per area;
+tests/                   DingoDiscordPresence-Tests: own runner (TestFramework.h), one file per area;
                          FakeDiscord.h + FakeDiscordWindows.cpp | FakeDiscordPosix.cpp: the test-only fake Discord
 tools/                   fake-discord.ps1: the fake pipe for captures and by-hand tests (Windows)
 scripts/windows/         Generate.bat, Build.bat, Test.bat
@@ -42,9 +42,9 @@ Windows and Linux in every phase: each builds and passes its tests on both befor
 
 | Thing | Convention |
 |---|---|
-| Namespace | `Dingo::Nametag` (internals in `Dingo::Nametag::Internal`) |
+| Namespace | `Dingo::DiscordPresence` (internals in `Dingo::DiscordPresence::Internal`) |
 | Members | `m_Name` (instance), `s_Name` (static), `UPPER_SNAKE_CASE` constants/macros |
-| Macros | `DNT_` prefix |
+| Macros | `DDP_` prefix |
 | Formatting | tabs, braces on new lines |
 
 - **`<Windows.h>` macros**: a game's headers may pull in `<Windows.h>` without `NOMINMAX`. Write `(std::min)(a, b)` / `(std::max)(...)` in public headers, and never name anything `near` or `far`.
@@ -66,7 +66,7 @@ Do not write code comments unless absolutely necessary. A comment must earn its 
 
 ## Tests
 
-`DingoNametag-Tests` uses its own runner (`tests/TestFramework.h`): `TEST(name)` registers a case, `CHECK(cond)` records a failure with file and line, and `main` prints `PASS`/`FAIL` per case and a summary, exiting non-zero on any failure. Tests that open a pipe pin index 9, where a real Discord never is (it takes the lowest free index), so a test run can never touch the developer's own Discord profile.
+`DingoDiscordPresence-Tests` uses its own runner (`tests/TestFramework.h`): `TEST(name)` registers a case, `CHECK(cond)` records a failure with file and line, and `main` prints `PASS`/`FAIL` per case and a summary, exiting non-zero on any failure. Tests that open a pipe pin index 9, where a real Discord never is (it takes the lowest free index), so a test run can never touch the developer's own Discord profile.
 
 The fake Discord (`tests/FakeDiscord.h`) is test-only, single-threaded and never blocks: a test alternates `fake.Pump()` and `client.Update()`. It listens on `discord-ipc-9` only. It records every frame it receives, answers the handshake with a READY that carries the marker user name `SECRET-USER` (a test proves no log line contains it), and can send a ping, raw bytes (a split frame, an oversize length) and CLOSE, drop the connection, and stop reading. On Linux it first points `XDG_RUNTIME_DIR` at a fresh `mkdtemp` folder and restores it afterwards, so a test can never reach a real Discord socket; keep that rule for any new fake or test that opens a pipe. Real sleeps only where the send gate or the write timeout needs them (Windows sleeps in 15 ms steps; spin with `yield` otherwise), so the run stays around a second.
 

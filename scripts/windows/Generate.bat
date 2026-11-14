@@ -1,11 +1,11 @@
 @echo off
 setlocal
-set "DNT_ARGS=%*"
+set "DDP_ARGS=%*"
 pushd "%~dp0..\.."
 call vendor\premake\bin\premake5.exe vs2026 %*
 set RESULT=%ERRORLEVEL%
 popd
-if not defined DNT_ARGS call :explorer "%~f0" && pause
+if not defined DDP_ARGS call :explorer "%~f0" && pause
 exit /b %RESULT%
 
 :explorer

@@ -1,6 +1,6 @@
 ---
 name: feature-plan
-description: Write a phased build plan in .claude/plans/ in DingoNametag's plan format, and execute it phase by phase (implementer, builds and tests on Windows and Linux, fresh reviewer, one commit per phase). Use when the user asks for a plan, says "execute <name> phase N" or "execute the whole plan", or when a change is big enough to need phases (over about an hour, a public API change, a protocol change, a packaging change).
+description: Write a phased build plan in .claude/plans/ in DingoDiscordPresence's plan format, and execute it phase by phase (implementer, builds and tests on Windows and Linux, fresh reviewer, one commit per phase). Use when the user asks for a plan, says "execute <name> phase N" or "execute the whole plan", or when a change is big enough to need phases (over about an hour, a public API change, a protocol change, a packaging change).
 ---
 
 # Plans: write them, then run them phase by phase
@@ -11,7 +11,7 @@ description: Write a phased build plan in .claude/plans/ in DingoNametag's plan 
 `discord-presence-library-plan.md` (the first plan in this repo).
 
 **Sections, in this order:**
-1. `# DingoNametag — <Name> Plan`
+1. `# DingoDiscordPresence — <Name> Plan`
 2. **`**Goal:**`** in 2–4 lines, including the user's reason in their own words.
 3. **Scope bullets:** what changes and what is deliberately untouched. Add "Line numbers are at
    `<short sha>`. If they've moved, grep the symbol."
@@ -26,7 +26,7 @@ description: Write a phased build plan in .claude/plans/ in DingoNametag's plan 
 7. **`## Decisions`:** one `### D1. <the call, stated as a decision>` per call.
    - Give each a code sketch and `file:line` refs, checked in the code, not guessed.
    - Put the user's own choices here too.
-8. **`## API and ABI`:** what changes in `include/DingoNametag/`, and what Headstone and 200 OK must
+8. **`## API and ABI`:** what changes in `include/DingoDiscordPresence/`, and what Headstone and 200 OK must
    change to take the new release. "None" is a valid answer and is written down.
 9. **`## Coordination`:** only when another plan or open branch touches the same files, or a game's
    plan waits on this one. Say which one lands first.

@@ -3,7 +3,7 @@
 #include "ClientTestSupport.h"
 #include "FakeDiscord.h"
 
-#include "DingoNametag/Nametag.h"
+#include "DingoDiscordPresence/DiscordPresence.h"
 #include "Json.h"
 #include "Platform/Pipe.h"
 
@@ -12,7 +12,7 @@
 #include <string>
 #include <thread>
 
-using namespace Dingo::Nametag;
+using namespace Dingo::DiscordPresence;
 
 namespace
 {

@@ -1,4 +1,4 @@
-#include "DingoNametag/Nametag.h"
+#include "DingoDiscordPresence/DiscordPresence.h"
 
 #include "Frame.h"
 #include "Json.h"
@@ -11,7 +11,7 @@
 #include <string>
 #include <utility>
 
-namespace Dingo::Nametag
+namespace Dingo::DiscordPresence
 {
 
 	namespace
